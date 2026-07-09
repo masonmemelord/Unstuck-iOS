@@ -28,3 +28,4 @@ To Do: Integrate Firebase, add more logic and pages
 - https://code.claude.com/docs/en/overview (ClaudeCode download)
 
 ## Jul 8, 2026
+Added a couple pages. Still skimming over the logic to see how everything works. No major changes outside of logic...
