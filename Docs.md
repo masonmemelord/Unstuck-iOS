@@ -11,6 +11,7 @@ First writes.
 To Do: Integrate Firebase, Set up Cover Page, Link docs/tuts for students
 
 How to make Git pull request: https://www.youtube.com/watch?v=jRLGobWwA3Y
+Apple Developer Requirements: https://developer.apple.com/app-store/review/guidelines/
 
 ## Jul 7, 2026
 I forgot to link the useful sites and videos but I'll link a few. 
@@ -29,3 +30,8 @@ To Do: Integrate Firebase, add more logic and pages
 
 ## Jul 8, 2026
 Added a couple pages. Still skimming over the logic to see how everything works. No major changes outside of logic...
+
+## Jul 9, 2026
+Changes Made: Added WeeklyCheckIn, it stores id, feeling, weekFocus, studyHours, scheduleSummary, goals, blockers, createdAt; Updated OverviewView, added checkin calling WeeklyCheckIn; updated TestingView @State var and ran Tests.
+To Do: Implement Login/Sign Up, New user onboarding, Weekly check-in and overview plan
+

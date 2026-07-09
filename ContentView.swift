@@ -279,6 +279,7 @@ struct ContentView: View {
     }
 }
 
+
 private extension View {
     func inputStyle(cardColor: Color, textColor: Color) -> some View {
         self

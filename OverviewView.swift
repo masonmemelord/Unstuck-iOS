@@ -4,51 +4,37 @@
 //
 //  Created by Mason Mitchell on 7/8/26.
 //
-//  Generic comments from Codex:
-//  Data Flow: shows how TestingView inputs become planner metrics.
-//  This Week's Load: displays the actual metrics.
-//  Logic Flow: shows which rules are active, like upcoming test, heavy workload, and recovery adjustment.
 
 import SwiftUI
 
 struct OverviewView: View {
+    let checkIn: WeeklyCheckIn //calls from WeeklyCheckIn
+
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
     private let cardColor = Color(red: 0.071, green: 0.102, blue: 0.141)
     private let primaryColor = Color(red: 0.231, green: 0.510, blue: 0.965)
     private let accentColor = Color(red: 0.133, green: 0.773, blue: 0.369)
-    private let warningColor = Color(red: 0.976, green: 0.451, blue: 0.086)
     private let textColor = Color(red: 0.973, green: 0.980, blue: 0.988)
     private let mutedTextColor = Color(red: 0.700, green: 0.753, blue: 0.835)
 
-    let feeling: String
-    let weekFocus: String
-    let studyHours: String
-    let scheduleSummary: String
-    let goals: [String]
-    let blockers: String
-
-    // Static initializations for variables
-    init(
-        feeling: String = "Stressed",
-        weekFocus: String = "Prepare for biology exam and stay caught up in math",
-        studyHours: String = "14",
-        scheduleSummary: String = "Biology test Friday, two work shifts, calculus homework due Wednesday, group project meeting Thursday.",
-        goals: [String] = ["Review biology chapters 4-6", "Finish calculus problem set", "Submit project outline"],
-        blockers: String = "Heavy workload, limited evenings, tired after work"
-    ) {
-        //self initialization  by using self.var = var
-        self.feeling = feeling
-        self.weekFocus = weekFocus
-        self.studyHours = studyHours
-        self.scheduleSummary = scheduleSummary
-        self.goals = goals
-        self.blockers = blockers
+    init(checkIn: WeeklyCheckIn) { //initializes self from the weeklycheckin, pulls all vars from weeklycheckin
+        self.checkIn = checkIn
     }
 
     private var cleanedGoals: [String] {
-        goals
+        checkIn.goals
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    private var parsedStudyHours: Int {
+        Int(checkIn.studyHours.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+    }
+
+    private var combinedMetrics: String {
+        ([checkIn.feeling, checkIn.weekFocus, checkIn.studyHours, checkIn.scheduleSummary, checkIn.blockers] + checkIn.goals)
+            .joined(separator: " ")
+            .lowercased()
     }
 
     private var hasUpcomingTest: Bool {
@@ -59,35 +45,28 @@ struct OverviewView: View {
         combinedMetrics.contains("heavy") || combinedMetrics.contains("work shift") || combinedMetrics.contains("workload") || parsedStudyHours >= 12 || cleanedGoals.count >= 4
     }
 
-    private var parsedStudyHours: Int {
-        Int(studyHours.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+    private var needsRecoveryAdjustment: Bool {
+        hasUpcomingTest && hasHeavyWorkload || checkIn.feeling == "Burnt out" || checkIn.feeling == "Stressed"
     }
 
-    private var combinedMetrics: String {
-        ([feeling, weekFocus, studyHours, scheduleSummary, blockers] + goals)
-            .joined(separator: " ")
-            .lowercased()
-    }
-    // More static return language
     private var movementPlan: String {
         if hasUpcomingTest && hasHeavyWorkload {
             return "Skip long gym sessions this week. Use 10-minute stretch breaks, short walks, and basic calisthenics between study blocks."
         }
 
-        if feeling == "Stressed" {
-            return "Keep movement low-friction: stretching, an easy walk, or one short bodyweight circuit."
+        if checkIn.feeling == "Burnt out" {
+            return "Prioritize your health, keep things light, and do something you enjoy. School is important, but so is your mental health."
         }
-        
-        if feeling == "Burnt Out"{
-            return "Priortize your health, keep things light, and do something you enjoy. School is important but so is your mental health."
+
+        if checkIn.feeling == "Stressed" {
+            return "Keep movement low-friction: stretching, an easy walk, or one short bodyweight circuit."
         }
 
         return "Plan 2-3 workouts around your lightest days, but keep one backup stretch routine ready."
     }
 
-    //
     private var weeklyPlanItems: [String] {
-        var items = [String]() //better than inializing strings constantly.
+        var items = [String]()
 
         if hasUpcomingTest {
             items.append("Put preparation first. Review your information in smaller blocks during the week instead of saving it for one long session.")
@@ -154,7 +133,7 @@ struct OverviewView: View {
                 .foregroundStyle(textColor)
 
             flowStep(number: "1", title: "TestingView collects check-in data", detail: "Feeling, weekly academic goal, study hours, schedule, goals, and blockers.")
-            flowStep(number: "2", title: "OverviewView receives those metrics", detail: "The values are passed into this view now, and can later come from Firestore.")
+            flowStep(number: "2", title: "OverviewView receives a WeeklyCheckIn", detail: "The model is passed into this view through init(checkIn:).")
             flowStep(number: "3", title: "Planner checks the workload", detail: "The view detects tests, heavy weeks, total study hours, and recovery risk.")
             flowStep(number: "4", title: "Plan cards are generated", detail: "The recommendations below are built from those checks.")
         }
@@ -170,13 +149,13 @@ struct OverviewView: View {
                 .foregroundStyle(textColor)
 
             HStack(spacing: 10) {
-                metricPill(title: "Feeling", value: feeling, color: feelingColor)
+                metricPill(title: "Feeling", value: checkIn.feeling, color: feelingColor)
                 metricPill(title: "Study", value: parsedStudyHours > 0 ? "\(parsedStudyHours) hrs" : "Not set", color: primaryColor)
             }
 
-            summaryRow(icon: "target", title: "Focus", value: weekFocus)
-            summaryRow(icon: "calendar", title: "Schedule", value: scheduleSummary)
-            summaryRow(icon: "exclamationmark.triangle", title: "Blockers", value: blockers)
+            summaryRow(icon: "target", title: "Focus", value: checkIn.weekFocus)
+            summaryRow(icon: "calendar", title: "Schedule", value: checkIn.scheduleSummary)
+            summaryRow(icon: "exclamationmark.triangle", title: "Blockers", value: checkIn.blockers)
         }
         .padding(18)
         .background(cardColor)
@@ -203,7 +182,7 @@ struct OverviewView: View {
 
             logicRow(
                 title: "Recovery adjustment needed",
-                isActive: hasUpcomingTest && hasHeavyWorkload || feeling == "Burnt out" || feeling == "Stressed",
+                isActive: needsRecoveryAdjustment,
                 detail: "If active, the plan favors stretching, walks, and calisthenics over long gym sessions."
             )
         }
@@ -279,7 +258,7 @@ struct OverviewView: View {
     }
 
     private var feelingColor: Color {
-        switch feeling {
+        switch checkIn.feeling {
         case "Burnt out":
             return Color(red: 0.875, green: 0.184, blue: 0.184)
         case "Stressed":
@@ -405,5 +384,20 @@ struct OverviewView: View {
 }
 
 #Preview {
-    OverviewView()
+    OverviewView(
+        checkIn: WeeklyCheckIn(
+            id: UUID().uuidString,
+            feeling: "Stressed",
+            weekFocus: "Prepare for biology exam and stay caught up in math",
+            studyHours: "14",
+            scheduleSummary: "Biology test Friday, two work shifts, calculus homework due Wednesday, group project meeting Thursday.",
+            goals: [
+                "Review biology chapters 4-6",
+                "Finish calculus problem set",
+                "Submit project outline"
+            ],
+            blockers: "Heavy workload, limited evenings, tired after work",
+            createdAt: Date()
+        )
+    )
 }

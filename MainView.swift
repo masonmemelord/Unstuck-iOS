@@ -35,16 +35,17 @@ struct MainView: View {
                         Text("Start getting Unstuck")
                             .font(.system(size: 34, weight: .bold, design: .rounded))
                             .foregroundStyle(textColor)
-
+                            .padding(.top, 16)
+                        
                         Text("But first, about you.")
                             .font(.headline)
                             .foregroundStyle(mutedTextColor)
+                            .padding(.bottom, 10)
                     }
 
                     VStack(alignment: .leading, spacing: 16) {
                         
                         //local changes for the logic, check how title and placeholder are being updated
-                        
                         profileField(title: "College", placeholder: "Where do you go?", text: $college)
                         profileField(title: "Major", placeholder: "What are you studying?", text: $major)
                         profileField(title: "Credits Taken", placeholder: "Example: 45", text: $creditsTaken)
@@ -89,10 +90,7 @@ struct MainView: View {
                     }
 
                     HStack(spacing: 10) {
-                        Circle()
-                            .fill(accentColor)
-                            .frame(width: 10, height: 10)
-                        Text("Your answers help personalize your recovery plan.")
+                            Text("Your answers help personalize your recovery plan.")
                             .font(.footnote)
                             .foregroundStyle(mutedTextColor)
                     }

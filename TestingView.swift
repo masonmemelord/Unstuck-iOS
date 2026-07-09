@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct TestingView: View {
+    
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
     private let cardColor = Color(red: 0.071, green: 0.102, blue: 0.141)
     private let primaryColor = Color(red: 0.231, green: 0.510, blue: 0.965)
@@ -27,6 +28,8 @@ struct TestingView: View {
     @State private var goals = [""]
     @State private var blockers = ""
     @State private var saveMessage = ""
+    @State private var savedCheckIn: WeeklyCheckIn?
+    @State private var isShowingOverview = false
 
     var body: some View {
         ZStack {
@@ -48,6 +51,11 @@ struct TestingView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .scrollDismissesKeyboard(.interactively)
+                .fullScreenCover(isPresented: $isShowingOverview) {
+                    if let savedCheckIn {
+                        OverviewView(checkIn: savedCheckIn)
+                    }
+                }
             }
         }
     }
@@ -58,7 +66,7 @@ struct TestingView: View {
                 Text("How are you feeling?")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(textColor)
-                Text("Choose the option that best matches where you are before planning your week.")
+                Text("Choose the feeling that best describes how you feel right now.")
                     .font(.headline)
                     .foregroundStyle(mutedTextColor)
                     .padding(.bottom, 20)
@@ -373,9 +381,23 @@ struct TestingView: View {
     }
 
     private func saveWeeklyCheckIn() {
+        let checkIn = WeeklyCheckIn(
+            id: UUID().uuidString,
+            feeling: selectedFeeling,
+            weekFocus: weekFocus,
+            studyHours: studyHours,
+            scheduleSummary: scheduleSummary,
+            goals: goals,
+            blockers: blockers,
+            createdAt: Date()
+        )
+
+        savedCheckIn = checkIn
         saveMessage = "Weekly plan saved."
+        isShowingOverview = true
     }
-}
+
+    }
 
 #Preview {
     TestingView()
