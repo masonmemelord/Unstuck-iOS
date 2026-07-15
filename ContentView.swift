@@ -49,6 +49,8 @@ struct ContentView: View {
     private let textColor = Color(red: 0.973, green: 0.980, blue: 0.988)
     private let mutedTextColor = Color(red: 0.580, green: 0.639, blue: 0.722)
 
+    @State private var currentUser: FirebaseAuth.User?
+    @State private var authListener: AuthStateDidChangeListenerHandle?
     @State private var isShowingLogin = false
     @State private var isShowingNewUserOnboarding = false
     @State private var authMode: AuthMode = .login
@@ -58,6 +60,26 @@ struct ContentView: View {
     @State private var isAuthenticating = false
 
     var body: some View {
+        Group {
+            if currentUser == nil {
+                coverPage
+            } else if isShowingNewUserOnboarding {
+                MainView()
+            } else {
+                TestingView()
+            }
+        }
+        .onAppear {
+            startAuthListener()
+        }
+        .sheet(isPresented: $isShowingLogin) {
+            loginSheet
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var coverPage: some View {
         ZStack {
             backgroundColor
                 .ignoresSafeArea()
@@ -119,14 +141,6 @@ struct ContentView: View {
             )
             .padding()
         }
-        .sheet(isPresented: $isShowingLogin) {
-            loginSheet
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .fullScreenCover(isPresented: $isShowingNewUserOnboarding) {
-            MainView()
-        }
     }
     // This view basically functions as a new View within the same file. When you click start it asks for you to either Sign Up/In
     private var loginSheet: some View {
@@ -155,6 +169,7 @@ struct ContentView: View {
 
                 VStack(spacing: 12) {
                     TextField("Email", text: $email)
+                    //$email is being changed to and sent to Firebasse
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.emailAddress)
@@ -162,7 +177,7 @@ struct ContentView: View {
                         .inputStyle(cardColor: cardColor, textColor: textColor)
 
                     SecureField("Password", text: $password)
-                        .textContentType(authMode == .login ? .password : .newPassword)
+                        .textContentType(.password) //SecureField takes password and send it to Firebase
                         .inputStyle(cardColor: cardColor, textColor: textColor)
                 }
 
@@ -219,6 +234,19 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
+    private func startAuthListener() { //checks for any auth changes
+        guard authListener == nil else { return }
+
+        currentUser = Auth.auth().currentUser
+        authListener = Auth.auth().addStateDidChangeListener { _, user in
+            currentUser = user
+
+            if user == nil {
+                isShowingNewUserOnboarding = false
+            }
+        }
+    }
+
     private func handleAuthAction() {
         //Switch case, works similar to an if/elif branch
         switch authMode {
@@ -236,7 +264,7 @@ struct ContentView: View {
         isAuthenticating = true
         authMessage = ""
 
-        Auth.auth().signIn(withEmail: email, password: password) { _, error in
+        Auth.auth().signIn(withEmail: email, password: password) { result, error in
             isAuthenticating = false
 
             if let error {
@@ -244,8 +272,11 @@ struct ContentView: View {
                 return
             }
 
+            currentUser = result?.user //Question-mark works as a collapse 
+            password = ""
             authMessage = "Logged in."
             isShowingLogin = false
+            isShowingNewUserOnboarding = false
         }
     }
 
@@ -255,7 +286,7 @@ struct ContentView: View {
         isAuthenticating = true
         authMessage = ""
 
-        Auth.auth().createUser(withEmail: email, password: password) { _, error in
+        Auth.auth().createUser(withEmail: email, password: password) { result, error in
             isAuthenticating = false
 
             if let error {
@@ -263,6 +294,8 @@ struct ContentView: View {
                 return
             }
 
+            currentUser = result?.user
+            password = ""
             authMessage = "Account created."
             isShowingLogin = false
             isShowingNewUserOnboarding = true

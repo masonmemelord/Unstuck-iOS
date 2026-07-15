@@ -35,3 +35,13 @@ Added a couple pages. Still skimming over the logic to see how everything works.
 Changes Made: Added WeeklyCheckIn, it stores id, feeling, weekFocus, studyHours, scheduleSummary, goals, blockers, createdAt; Updated OverviewView, added checkin calling WeeklyCheckIn; updated TestingView @State var and ran Tests.
 To Do: Implement Login/Sign Up, New user onboarding, Weekly check-in and overview plan
 
+## Jul 13, 2026
+Changes Made: Added WeeklyCheckIn, it stores id, feeling, weekFocus, studyHours, scheduleSummary, goals, blockers, createdAt; Updated OverviewView, added checkin calling WeeklyCheckIn; updated TestingView @State var and ran Tests.
+To Do: Upgraded screen routing, added auth listener, and Auth state tracking. Also updated login and signup logic
+
+## Jul 14, 2026
+Changes Made: Updated sign in/up logic and flow, added HomeView for a homepage song, added Firebase in ContentView to track currentUser. 
+SignUp -> MainView; SignIn -> TestingView. Linked Testing View to OverviewView via @state savedCheckIn. Stored information in WeeklyCheckIn.
+To Do: Persist weekly check-ins (database-linked), sign-out button, Add user-specific data, Dashboard. General 
+error-handling.
+

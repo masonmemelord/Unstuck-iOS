@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import FirebaseAuth
+
 
 struct TestingView: View {
     
@@ -381,6 +383,11 @@ struct TestingView: View {
     }
 
     private func saveWeeklyCheckIn() {
+        guard Auth.auth().currentUser?.uid != nil else {
+            saveMessage = "Please sign in before saving your weekly plan."
+            return
+        }
+
         let checkIn = WeeklyCheckIn(
             id: UUID().uuidString,
             feeling: selectedFeeling,
@@ -391,6 +398,8 @@ struct TestingView: View {
             blockers: blockers,
             createdAt: Date()
         )
+        
+        _ = Auth.auth().currentUser!.uid
 
         savedCheckIn = checkIn
         saveMessage = "Weekly plan saved."

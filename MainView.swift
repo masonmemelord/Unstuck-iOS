@@ -22,7 +22,9 @@ struct MainView: View {
     @State private var college = ""
     @State private var major = ""
     @State private var creditsTaken = ""
+    @State private var isShowingTestingView = false
     @State private var schoolYear = "Freshman"
+    
 
     var body: some View {
         ZStack {
@@ -78,7 +80,7 @@ struct MainView: View {
                     }
 
                     Button {
-                        saveProfile()
+                        isShowingTestingView = true
                     } label: {
                         Text("Continue")
                             .font(.headline)
@@ -99,6 +101,9 @@ struct MainView: View {
                 .frame(maxWidth: 420)
                 .frame(maxWidth: .infinity)
             }
+        }
+        .fullScreenCover(isPresented: $isShowingTestingView) {
+            TestingView()
         }
     }
     //private function being called in the ZStack
