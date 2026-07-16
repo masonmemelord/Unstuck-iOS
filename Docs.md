@@ -45,3 +45,9 @@ SignUp -> MainView; SignIn -> TestingView. Linked Testing View to OverviewView v
 To Do: Persist weekly check-ins (database-linked), sign-out button, Add user-specific data, Dashboard. General 
 error-handling.
 
+## Jul 15, 2026
+Changes Made: Added functional dashboard and relinked sign-in to HomeView, added Sign out button, 
+added SettingsView and AboutView with relevant information, restructured HomeView into a real dashboard. 
+Added return buttons across the app.
+To Do: Link AboutView to dashboard, persist weekly check-ins to Firebase, Load lastest check in into dashboard, add plan 
+history, clean up unused/redundant files/fields.

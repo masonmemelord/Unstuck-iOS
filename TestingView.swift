@@ -7,9 +7,11 @@
 
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 
 struct TestingView: View {
+    @Environment(\.dismiss) private var dismiss
     
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
     private let cardColor = Color(red: 0.071, green: 0.102, blue: 0.141)
@@ -41,6 +43,8 @@ struct TestingView: View {
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
+                        returnHeader
+
                         if selectedFeeling.isEmpty {
                             feelingPrompt
                         } else {
@@ -59,6 +63,32 @@ struct TestingView: View {
                     }
                 }
             }
+        }
+    }
+
+    private var returnHeader: some View {
+        HStack {
+            Button {
+                dismiss()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "house.fill")
+                    Text("Dashboard")
+                }
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(textColor)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(cardColor)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(primaryColor.opacity(0.24), lineWidth: 1)
+                )
+            }
+            .accessibilityLabel("Return to dashboard")
+
+            Spacer()
         }
     }
 
@@ -383,7 +413,7 @@ struct TestingView: View {
     }
 
     private func saveWeeklyCheckIn() {
-        guard Auth.auth().currentUser?.uid != nil else {
+        guard let uid = Auth.auth().currentUser?.uid else {
             saveMessage = "Please sign in before saving your weekly plan."
             return
         }
@@ -398,14 +428,34 @@ struct TestingView: View {
             blockers: blockers,
             createdAt: Date()
         )
-        
-        _ = Auth.auth().currentUser!.uid
 
-        savedCheckIn = checkIn
-        saveMessage = "Weekly plan saved."
-        isShowingOverview = true
+        let data: [String: Any] = [
+            "id": checkIn.id,
+            "feeling": checkIn.feeling,
+            "weekFocus": checkIn.weekFocus,
+            "studyHours": checkIn.studyHours,
+            "scheduleSummary": checkIn.scheduleSummary,
+            "goals": checkIn.goals,
+            "blockers": checkIn.blockers,
+            "createdAt": Timestamp(date: checkIn.createdAt)
+        ]
+
+        Firestore.firestore()
+            .collection("users")
+            .document(uid)
+            .collection("weeklyCheckIns")
+            .document(checkIn.id)
+            .setData(data) { error in
+                if let error {
+                    saveMessage = error.localizedDescription
+                    return
+                }
+
+                savedCheckIn = checkIn
+                saveMessage = "Weekly plan saved."
+                isShowingOverview = true
+            }
     }
-
     }
 
 #Preview {

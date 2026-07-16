@@ -66,7 +66,7 @@ struct ContentView: View {
             } else if isShowingNewUserOnboarding {
                 MainView()
             } else {
-                TestingView()
+                HomeView()
             }
         }
         .onAppear {
