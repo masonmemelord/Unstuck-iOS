@@ -19,6 +19,9 @@ struct HomeView: View {
 
     @State private var isShowingTestingView = false
     @State private var isShowingSettings = false
+    @State private var isShowingAbout = false
+    @State private var isShowingLatestPlan = false
+    @State private var latestCheckIn: WeeklyCheckIn?
 
     private var userEmail: String {
         Auth.auth().currentUser?.email ?? "Student"
@@ -46,8 +49,16 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $isShowingTestingView) {
             TestingView()
         }
+        .fullScreenCover(isPresented: $isShowingLatestPlan) {
+            if let latestCheckIn {
+                OverviewView(checkIn: latestCheckIn)
+            }
+        }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView()
+        }
+        .sheet(isPresented: $isShowingAbout) {
+            AboutView()
         }
     }
 
@@ -154,13 +165,24 @@ struct HomeView: View {
             }
 
             actionRow(
-                title: "Review latest plan",
-                detail: "Available after plans are saved to Firebase.",
+                title: "View Latest Plan",
+                detail: latestCheckIn == nil ? "No saved plan loaded yet." : "Open your most recent weekly plan.",
                 icon: "doc.text.magnifyingglass",
                 color: accentColor
-            ) { }
-            .opacity(0.55)
-            .disabled(true)
+            ) {
+                isShowingLatestPlan = true
+            }
+            .opacity(latestCheckIn == nil ? 0.55 : 1)
+            .disabled(latestCheckIn == nil)
+
+            actionRow(
+                title: "About Unstuck",
+                detail: "Read the mission, founder note, and team values.",
+                icon: "info.circle.fill",
+                color: primaryColor
+            ) {
+                isShowingAbout = true
+            }
         }
     }
 

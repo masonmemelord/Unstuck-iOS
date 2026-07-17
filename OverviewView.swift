@@ -8,7 +8,10 @@
 import SwiftUI
 
 struct OverviewView: View {
+    @Environment(\.dismiss) private var dismiss
+
     let checkIn: WeeklyCheckIn //calls from WeeklyCheckIn
+    let onReturnHome: (() -> Void)?
 
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
     private let cardColor = Color(red: 0.071, green: 0.102, blue: 0.141)
@@ -17,8 +20,9 @@ struct OverviewView: View {
     private let textColor = Color(red: 0.973, green: 0.980, blue: 0.988)
     private let mutedTextColor = Color(red: 0.700, green: 0.753, blue: 0.835)
 
-    init(checkIn: WeeklyCheckIn) { //initializes self from the weeklycheckin, pulls all vars from weeklycheckin
+    init(checkIn: WeeklyCheckIn, onReturnHome: (() -> Void)? = nil) { //initializes self from the weeklycheckin, pulls all vars from weeklycheckin
         self.checkIn = checkIn
+        self.onReturnHome = onReturnHome
     }
 
     private var cleanedGoals: [String] {
@@ -115,14 +119,39 @@ struct OverviewView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Plan for the Week")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(textColor)
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Plan for the Week")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(textColor)
 
-            Text("Built from your check-in, schedule, goals, and current energy.")
-                .font(.headline)
-                .foregroundStyle(mutedTextColor)
+                Text("Built from your check-in, schedule, goals, and current energy.")
+                    .font(.headline)
+                    .foregroundStyle(mutedTextColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+
+            Button {
+                if let onReturnHome {
+                    onReturnHome()
+                } else {
+                    dismiss()
+                }
+            } label: {
+                Image(systemName: "house.fill")
+                    .font(.headline)
+                    .foregroundStyle(textColor)
+                    .frame(width: 44, height: 44)
+                    .background(cardColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(primaryColor.opacity(0.24), lineWidth: 1)
+                    )
+            }
+            .accessibilityLabel("Return to dashboard")
         }
     }
 

@@ -59,7 +59,10 @@ struct TestingView: View {
                 .scrollDismissesKeyboard(.interactively)
                 .fullScreenCover(isPresented: $isShowingOverview) {
                     if let savedCheckIn {
-                        OverviewView(checkIn: savedCheckIn)
+                        OverviewView(checkIn: savedCheckIn) {
+                            isShowingOverview = false
+                            dismiss()
+                        }
                     }
                 }
             }

@@ -50,4 +50,17 @@ Changes Made: Added functional dashboard and relinked sign-in to HomeView, added
 added SettingsView and AboutView with relevant information, restructured HomeView into a real dashboard. 
 Added return buttons across the app.
 To Do: Link AboutView to dashboard, persist weekly check-ins to Firebase, Load lastest check in into dashboard, add plan 
-history, clean up unused/redundant files/fields.
+history, clean up unused/redundant files/fields. Error Handling.
+
+## Jul 17, 2026
+Changes Made: Linked AboutView (and sheet 
+presentation) to Dashboard, persist 
+weekly check-ins to Firebase. Confirmed check-ins in 
+Testing View under 
+"users/{uid}/weeklyCheckIns/{checkInId}". Added View 
+Latest Plan state in HomeView and a full-screen cover
+for OverviewView. Updated buttons, ran diagnosttics 
+and security. Build successful
+To Do: Update dashboard metrics with values from 
+latest CheckIn. Add plan history. Clean up delete 
+logic. Add strong form validation. 
