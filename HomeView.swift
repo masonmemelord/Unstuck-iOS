@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 struct HomeView: View {
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
@@ -22,9 +23,81 @@ struct HomeView: View {
     @State private var isShowingAbout = false
     @State private var isShowingLatestPlan = false
     @State private var latestCheckIn: WeeklyCheckIn?
+    @State private var isLoadingLatestCheckIn = false
+    @State private var dashboardMessage = ""
 
     private var userEmail: String {
         Auth.auth().currentUser?.email ?? "Student"
+    }
+
+    private var parsedStudyHours: Int {
+        guard let latestCheckIn else { return 0 }
+        return Int(latestCheckIn.studyHours.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+    }
+
+    private var planStatusValue: String {
+        latestCheckIn == nil ? "Pending" : "Ready"
+    }
+
+    private var checkInValue: String {
+        latestCheckIn?.feeling ?? "Needed"
+    }
+
+    private var recoveryValue: String {
+        guard let latestCheckIn else { return "Unset" }
+
+        switch latestCheckIn.feeling {
+        case "Burnt out":
+            return "Prioritize"
+        case "Stressed":
+            return "Protect"
+        case "Focused":
+            return "Steady"
+        case "Motivated":
+            return "Active"
+        default:
+            return "Set"
+        }
+    }
+
+    private var workloadValue: String {
+        guard latestCheckIn != nil else { return "Unknown" }
+
+        switch parsedStudyHours {
+        case 12...:
+            return "Heavy"
+        case 6...11:
+            return "Moderate"
+        case 1...5:
+            return "Light"
+        default:
+            return "Unclear"
+        }
+    }
+
+    private var workloadColor: Color {
+        switch workloadValue {
+        case "Heavy":
+            return warningColor
+        case "Moderate":
+            return primaryColor
+        case "Light":
+            return accentColor
+        default:
+            return mutedTextColor
+        }
+    }
+
+    private var weeklyStatusText: String {
+        if isLoadingLatestCheckIn {
+            return "Loading your latest weekly check-in..."
+        }
+
+        if let latestCheckIn {
+            return "Latest plan: \(latestCheckIn.weekFocus). Feeling: \(latestCheckIn.feeling). Study target: \(latestCheckIn.studyHours) hours."
+        }
+
+        return dashboardMessage.isEmpty ? "Start a check-in to generate this week's plan." : dashboardMessage
     }
 
     var body: some View {
@@ -46,12 +119,17 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .fullScreenCover(isPresented: $isShowingTestingView) {
+        .onAppear {
+            loadLatestCheckIn()
+        }
+        .fullScreenCover(isPresented: $isShowingTestingView, onDismiss: loadLatestCheckIn) {
             TestingView()
         }
         .fullScreenCover(isPresented: $isShowingLatestPlan) {
             if let latestCheckIn {
-                OverviewView(checkIn: latestCheckIn)
+                OverviewView(checkIn: latestCheckIn) {
+                    isShowingLatestPlan = false
+                }
             }
         }
         .sheet(isPresented: $isShowingSettings) {
@@ -98,9 +176,9 @@ struct HomeView: View {
     private var weeklyStatusCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "calendar.badge.clock")
+                Image(systemName: latestCheckIn == nil ? "calendar.badge.clock" : "calendar.badge.checkmark")
                     .font(.title2)
-                    .foregroundStyle(primaryColor)
+                    .foregroundStyle(latestCheckIn == nil ? primaryColor : accentColor)
                     .frame(width: 34)
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -108,7 +186,7 @@ struct HomeView: View {
                         .font(.headline)
                         .foregroundStyle(textColor)
 
-                    Text("Start a check-in to generate this week's plan. Saved history comes next when Firebase data storage is added.")
+                    Text(weeklyStatusText)
                         .font(.subheadline)
                         .foregroundStyle(mutedTextColor)
                         .fixedSize(horizontal: false, vertical: true)
@@ -120,7 +198,7 @@ struct HomeView: View {
             } label: {
                 HStack {
                     Image(systemName: "plus.circle.fill")
-                    Text("Start Weekly Check-In")
+                    Text(latestCheckIn == nil ? "Start Weekly Check-In" : "Create New Check-In")
                     Spacer()
                     Image(systemName: "chevron.right")
                 }
@@ -142,10 +220,10 @@ struct HomeView: View {
 
     private var metricGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            metricTile(title: "Plan Status", value: "Pending", icon: "list.bullet.clipboard", color: warningColor)
-            metricTile(title: "Check-In", value: "Needed", icon: "checkmark.circle", color: primaryColor)
-            metricTile(title: "Recovery", value: "Unset", icon: "heart.fill", color: accentColor)
-            metricTile(title: "Workload", value: "Unknown", icon: "books.vertical.fill", color: mutedTextColor)
+            metricTile(title: "Plan Status", value: planStatusValue, icon: "list.bullet.clipboard", color: latestCheckIn == nil ? warningColor : accentColor)
+            metricTile(title: "Check-In", value: checkInValue, icon: "checkmark.circle", color: primaryColor)
+            metricTile(title: "Recovery", value: recoveryValue, icon: "heart.fill", color: accentColor)
+            metricTile(title: "Workload", value: workloadValue, icon: "books.vertical.fill", color: workloadColor)
         }
     }
 
@@ -165,7 +243,7 @@ struct HomeView: View {
             }
 
             actionRow(
-                title: "View Latest Plan",
+                title: "Plan History",
                 detail: latestCheckIn == nil ? "No saved plan loaded yet." : "Open your most recent weekly plan.",
                 icon: "doc.text.magnifyingglass",
                 color: accentColor
@@ -192,9 +270,9 @@ struct HomeView: View {
                 .font(.headline)
                 .foregroundStyle(textColor)
 
-            checklistItem("Save WeeklyCheckIn records under the signed-in user's uid.")
-            checklistItem("Load the latest check-in here and replace the placeholder metrics.")
-            checklistItem("Add a plan history view once multiple check-ins exist.")
+            checklistItem("Add plan history view once multiple check-ins exist.")
+            checklistItem("Add stronger validation before saving weekly check-ins.")
+            checklistItem("Clean up Firestore user data when an account is deleted.")
         }
         .padding(18)
         .background(cardColor.opacity(0.7))
@@ -283,6 +361,78 @@ struct HomeView: View {
                 .foregroundStyle(mutedTextColor)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private func loadLatestCheckIn() {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            latestCheckIn = nil
+            dashboardMessage = "Sign in to load your latest weekly plan."
+            return
+        }
+
+        isLoadingLatestCheckIn = true
+        dashboardMessage = ""
+
+        Firestore.firestore()
+            .collection("users")
+            .document(uid)
+            .collection("weeklyCheckIns")
+            .order(by: "createdAt", descending: true)
+            .limit(to: 1)
+            .getDocuments { snapshot, error in
+                isLoadingLatestCheckIn = false
+
+                if let error {
+                    latestCheckIn = nil
+                    dashboardMessage = error.localizedDescription
+                    return
+                }
+
+                guard let document = snapshot?.documents.first else {
+                    latestCheckIn = nil
+                    dashboardMessage = "No saved weekly plan yet."
+                    return
+                }
+
+                latestCheckIn = makeCheckIn(from: document)
+                dashboardMessage = latestCheckIn == nil ? "Could not read the latest weekly plan." : ""
+            }
+    }
+
+    private func makeCheckIn(from document: QueryDocumentSnapshot) -> WeeklyCheckIn? {
+        let data = document.data()
+
+        guard
+            let id = data["id"] as? String,
+            let feeling = data["feeling"] as? String,
+            let weekFocus = data["weekFocus"] as? String,
+            let studyHours = data["studyHours"] as? String,
+            let scheduleSummary = data["scheduleSummary"] as? String,
+            let goals = data["goals"] as? [String],
+            let blockers = data["blockers"] as? String
+        else {
+            return nil
+        }
+
+        let createdAt: Date
+        if let timestamp = data["createdAt"] as? Timestamp {
+            createdAt = timestamp.dateValue()
+        } else if let date = data["createdAt"] as? Date {
+            createdAt = date
+        } else {
+            createdAt = Date()
+        }
+
+        return WeeklyCheckIn(
+            id: id,
+            feeling: feeling,
+            weekFocus: weekFocus,
+            studyHours: studyHours,
+            scheduleSummary: scheduleSummary,
+            goals: goals,
+            blockers: blockers,
+            createdAt: createdAt
+        )
     }
 }
 
