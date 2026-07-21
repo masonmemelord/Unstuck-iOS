@@ -66,7 +66,7 @@ struct ContentView: View {
             } else if isShowingNewUserOnboarding {
                 MainView()
             } else {
-                HomeView()
+                MainTabView()
             }
         }
         .onAppear {
@@ -312,6 +312,56 @@ struct ContentView: View {
     }
 }
 
+private enum MainAppTab: Hashable {
+    case home
+    case checkIn
+    case history
+    case settings
+}
+
+private struct MainTabView: View {
+    private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
+    private let primaryColor = Color(red: 0.231, green: 0.510, blue: 0.965)
+
+    @State private var selectedTab: MainAppTab = .home
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            HomeView(
+                onStartCheckIn: { selectedTab = .checkIn },
+                onShowPlanHistory: { selectedTab = .history },
+                showsSettingsButton: false
+            )
+            .tabItem {
+                Label("Home", systemImage: "house.fill")
+            }
+            .tag(MainAppTab.home)
+
+            TestingView(showsReturnButton: false) {
+                selectedTab = .home
+            }
+            .tabItem {
+                Label("Check-In", systemImage: "square.and.pencil")
+            }
+            .tag(MainAppTab.checkIn)
+
+            PlanHistoryView(showsReturnButton: false)
+            .tabItem {
+                Label("History", systemImage: "clock.arrow.circlepath")
+            }
+            .tag(MainAppTab.history)
+
+            SettingsView(showsReturnButton: false)
+            .tabItem {
+                Label("Settings", systemImage: "gearshape.fill")
+            }
+            .tag(MainAppTab.settings)
+        }
+        .tint(primaryColor)
+        .toolbarBackground(backgroundColor, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+    }
+}
 
 private extension View {
     func inputStyle(cardColor: Color, textColor: Color) -> some View {

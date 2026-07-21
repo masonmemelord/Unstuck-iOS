@@ -70,3 +70,9 @@ Changes Made: Updated HomeView to import Firestore for data persistence, Dashboa
 Changed language of "View Latest Plan" to be more accurate. Ran diagnostics and builds for security.
 To Do: Work on Editing/Deletion logic, add check-in validation, and AI generated solutions based on responses (Last 
 priority)
+
+## Jul 20, 2026
+Changes Made: Removed "Next Build" implementtion and switched it to AboutView, added PlanView and connected to the Dashboard, updatd navbar with updated page routing.
+To Do: Work on Editing/Deletion logic, add check-in validation, and AI generated solutions based on responses (Last 
+priority)
+

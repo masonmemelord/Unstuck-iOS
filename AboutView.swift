@@ -28,6 +28,7 @@ struct AboutView: View {
                     missionCard
                     founderCard
                     teamCard
+                    nextBuildCard
                 }
                 .padding(24)
                 .padding(.bottom, 32)
@@ -127,6 +128,22 @@ struct AboutView: View {
             valueRow(title: "Practical", detail: "Every screen should help the user take a clear next step.")
         }
         .aboutCard(cardColor: cardColor, strokeColor: accentColor)
+    }
+
+    private var nextBuildCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(title: "Next Build", icon: "hammer.fill", color: primaryColor)
+
+            Text("Current roadmap items for making Unstuck more reliable, secure, and useful.")
+                .font(.subheadline)
+                .foregroundStyle(mutedTextColor)
+                .fixedSize(horizontal: false, vertical: true)
+
+            valueRow(title: "Stronger check-in validation", detail: "Validate required answers and study-hour input before saving weekly check-ins to Firebase.")
+            valueRow(title: "Account data cleanup", detail: "Delete the user's Firestore check-ins when their account is deleted.")
+            valueRow(title: "Automated testing", detail: "Add tests for dashboard metrics, Firestore decoding, and the main navigation flow.")
+        }
+        .aboutCard(cardColor: cardColor, strokeColor: primaryColor)
     }
 
     private func sectionHeader(title: String, icon: String, color: Color) -> some View {

@@ -9,6 +9,12 @@ import SwiftUI
 import FirebaseAuth
 
 struct SettingsView: View {
+    let showsReturnButton: Bool
+
+    init(showsReturnButton: Bool = true) {
+        self.showsReturnButton = showsReturnButton
+    }
+
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
     private let cardColor = Color(red: 0.071, green: 0.102, blue: 0.141)
     private let primaryColor = Color(red: 0.231, green: 0.510, blue: 0.965)
@@ -70,21 +76,23 @@ struct SettingsView: View {
 
             Spacer()
 
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.headline)
-                    .foregroundStyle(textColor)
-                    .frame(width: 44, height: 44)
-                    .background(cardColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(primaryColor.opacity(0.24), lineWidth: 1)
-                    )
+            if showsReturnButton {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.headline)
+                        .foregroundStyle(textColor)
+                        .frame(width: 44, height: 44)
+                        .background(cardColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(primaryColor.opacity(0.24), lineWidth: 1)
+                        )
+                }
+                .accessibilityLabel("Return to dashboard")
             }
-            .accessibilityLabel("Return to dashboard")
         }
     }
 

@@ -10,6 +10,20 @@ import FirebaseAuth
 import FirebaseFirestore
 
 struct HomeView: View {
+    let onStartCheckIn: (() -> Void)?
+    let onShowPlanHistory: (() -> Void)?
+    let showsSettingsButton: Bool
+
+    init(
+        onStartCheckIn: (() -> Void)? = nil,
+        onShowPlanHistory: (() -> Void)? = nil,
+        showsSettingsButton: Bool = true
+    ) {
+        self.onStartCheckIn = onStartCheckIn
+        self.onShowPlanHistory = onShowPlanHistory
+        self.showsSettingsButton = showsSettingsButton
+    }
+
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
     private let cardColor = Color(red: 0.071, green: 0.102, blue: 0.141)
     private let primaryColor = Color(red: 0.231, green: 0.510, blue: 0.965)
@@ -22,6 +36,7 @@ struct HomeView: View {
     @State private var isShowingSettings = false
     @State private var isShowingAbout = false
     @State private var isShowingLatestPlan = false
+    @State private var isShowingPlanHistory = false
     @State private var latestCheckIn: WeeklyCheckIn?
     @State private var isLoadingLatestCheckIn = false
     @State private var dashboardMessage = ""
@@ -111,7 +126,7 @@ struct HomeView: View {
                     weeklyStatusCard
                     metricGrid
                     actionSection
-                    nextBuildSection
+                    
                 }
                 .padding(24)
                 .padding(.bottom, 32)
@@ -131,6 +146,9 @@ struct HomeView: View {
                     isShowingLatestPlan = false
                 }
             }
+        }
+        .fullScreenCover(isPresented: $isShowingPlanHistory, onDismiss: loadLatestCheckIn) {
+            PlanHistoryView()
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView()
@@ -155,21 +173,23 @@ struct HomeView: View {
 
             Spacer()
 
-            Button {
-                isShowingSettings = true
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.headline)
-                    .foregroundStyle(textColor)
-                    .frame(width: 44, height: 44)
-                    .background(cardColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(primaryColor.opacity(0.24), lineWidth: 1)
-                    )
+            if showsSettingsButton {
+                Button {
+                    isShowingSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.headline)
+                        .foregroundStyle(textColor)
+                        .frame(width: 44, height: 44)
+                        .background(cardColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(primaryColor.opacity(0.24), lineWidth: 1)
+                        )
+                }
+                .accessibilityLabel("Open settings")
             }
-            .accessibilityLabel("Open settings")
         }
     }
 
@@ -194,7 +214,7 @@ struct HomeView: View {
             }
 
             Button {
-                isShowingTestingView = true
+                openCheckIn()
             } label: {
                 HStack {
                     Image(systemName: "plus.circle.fill")
@@ -239,19 +259,17 @@ struct HomeView: View {
                 icon: "square.and.pencil",
                 color: primaryColor
             ) {
-                isShowingTestingView = true
+                openCheckIn()
             }
 
             actionRow(
                 title: "Plan History",
-                detail: latestCheckIn == nil ? "No saved plan loaded yet." : "Open your most recent weekly plan.",
-                icon: "doc.text.magnifyingglass",
+                detail: latestCheckIn == nil ? "View saved plans after your first check-in." : "Review every saved weekly plan.",
+                icon: "clock.arrow.circlepath",
                 color: accentColor
             ) {
-                isShowingLatestPlan = true
+                openPlanHistory()
             }
-            .opacity(latestCheckIn == nil ? 0.55 : 1)
-            .disabled(latestCheckIn == nil)
 
             actionRow(
                 title: "About Unstuck",
@@ -263,26 +281,7 @@ struct HomeView: View {
             }
         }
     }
-
-    private var nextBuildSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Next Build")
-                .font(.headline)
-                .foregroundStyle(textColor)
-
-            checklistItem("Add plan history view once multiple check-ins exist.")
-            checklistItem("Add stronger validation before saving weekly check-ins.")
-            checklistItem("Clean up Firestore user data when an account is deleted.")
-        }
-        .padding(18)
-        .background(cardColor.opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(accentColor.opacity(0.18), lineWidth: 1)
-        )
-    }
-
+    
     private func metricTile(title: String, value: String, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Image(systemName: icon)
@@ -360,6 +359,22 @@ struct HomeView: View {
                 .font(.footnote)
                 .foregroundStyle(mutedTextColor)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func openCheckIn() {
+        if let onStartCheckIn {
+            onStartCheckIn()
+        } else {
+            isShowingTestingView = true
+        }
+    }
+
+    private func openPlanHistory() {
+        if let onShowPlanHistory {
+            onShowPlanHistory()
+        } else {
+            isShowingPlanHistory = true
         }
     }
 

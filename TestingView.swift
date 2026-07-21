@@ -12,6 +12,14 @@ import FirebaseFirestore
 
 struct TestingView: View {
     @Environment(\.dismiss) private var dismiss
+
+    let showsReturnButton: Bool
+    let onReturnHome: (() -> Void)?
+
+    init(showsReturnButton: Bool = true, onReturnHome: (() -> Void)? = nil) {
+        self.showsReturnButton = showsReturnButton
+        self.onReturnHome = onReturnHome
+    }
     
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
     private let cardColor = Color(red: 0.071, green: 0.102, blue: 0.141)
@@ -43,7 +51,9 @@ struct TestingView: View {
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        returnHeader
+                        if showsReturnButton {
+                            returnHeader
+                        }
 
                         if selectedFeeling.isEmpty {
                             feelingPrompt
@@ -60,8 +70,7 @@ struct TestingView: View {
                 .fullScreenCover(isPresented: $isShowingOverview) {
                     if let savedCheckIn {
                         OverviewView(checkIn: savedCheckIn) {
-                            isShowingOverview = false
-                            dismiss()
+                            returnHome()
                         }
                     }
                 }
@@ -72,7 +81,7 @@ struct TestingView: View {
     private var returnHeader: some View {
         HStack {
             Button {
-                dismiss()
+                returnHome()
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "house.fill")
@@ -362,6 +371,16 @@ struct TestingView: View {
                 goals[index] = newValue
             }
         )
+    }
+
+    private func returnHome() {
+        isShowingOverview = false
+
+        if let onReturnHome {
+            onReturnHome()
+        } else {
+            dismiss()
+        }
     }
 
     private func goalPlaceholder(for index: Int) -> String {
