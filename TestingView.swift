@@ -213,7 +213,8 @@ struct TestingView: View {
             if !saveMessage.isEmpty {
                 Text(saveMessage)
                     .font(.footnote)
-                    .foregroundStyle(accentColor)
+                    .foregroundStyle(saveMessageColor)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -342,6 +343,10 @@ struct TestingView: View {
         }
     }
 
+    private var saveMessageColor: Color {
+        saveMessage == "Weekly plan saved." ? accentColor : warningColor
+    }
+
     private func addGoal(scrollProxy: ScrollViewProxy) {
         goals.append("")
         saveMessage = ""
@@ -434,20 +439,102 @@ struct TestingView: View {
         textColor
     }
 
+    struct ValidatedCheckInAnswers { //info sent to Firebase
+        let feeling: String
+        let weekFocus: String
+        let studyHours: String
+        let scheduleSummary: String
+        let goals: [String]
+        let blockers: String
+    }
+
+    struct WeeklyCheckInValidationResult {
+        let isValid: Bool
+        let message: String
+        let checkIn: ValidatedCheckInAnswers?
+    }
+
+    func validateWeeklyCheckInAnswers(
+        selectedFeeling: String,
+        weekFocus: String,
+        studyHours: String,
+        scheduleSummary: String,
+        goals: [String],
+        blockers: String
+    ) -> WeeklyCheckInValidationResult {
+        let trimmedFeeling = selectedFeeling.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedWeekFocus = weekFocus.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedStudyHours = studyHours.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedScheduleSummary = scheduleSummary.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedGoals = goals
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let trimmedBlockers = blockers.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard feelings.contains(trimmedFeeling) else {
+            return WeeklyCheckInValidationResult(isValid: false, message: "Choose how you are feeling before saving.", checkIn: nil)
+        }
+
+        guard !trimmedWeekFocus.isEmpty else {
+            return WeeklyCheckInValidationResult(isValid: false, message: "Enter your weekly academic goal before saving.", checkIn: nil)
+        }
+
+        guard let studyHourCount = Int(trimmedStudyHours) else {
+            return WeeklyCheckInValidationResult(isValid: false, message: "Study hours must be a whole number.", checkIn: nil)
+        }
+
+        guard (0...80).contains(studyHourCount) else {
+            return WeeklyCheckInValidationResult(isValid: false, message: "Study hours must be between 0 and 80.", checkIn: nil)
+        }
+
+        guard !trimmedScheduleSummary.isEmpty else {
+            return WeeklyCheckInValidationResult(isValid: false, message: "Enter your weekly schedule before saving.", checkIn: nil)
+        }
+
+        guard !cleanedGoals.isEmpty else {
+            return WeeklyCheckInValidationResult(isValid: false, message: "Add at least one goal before saving.", checkIn: nil)
+        }
+
+        let cleanedCheckIn = ValidatedCheckInAnswers(
+            feeling: trimmedFeeling,
+            weekFocus: trimmedWeekFocus,
+            studyHours: String(studyHourCount),
+            scheduleSummary: trimmedScheduleSummary,
+            goals: cleanedGoals,
+            blockers: trimmedBlockers
+        )
+
+        return WeeklyCheckInValidationResult(isValid: true, message: "", checkIn: cleanedCheckIn)
+    }
+
     private func saveWeeklyCheckIn() {
         guard let uid = Auth.auth().currentUser?.uid else {
             saveMessage = "Please sign in before saving your weekly plan."
             return
         }
 
-        let checkIn = WeeklyCheckIn(
-            id: UUID().uuidString,
-            feeling: selectedFeeling,
+        let validation = validateWeeklyCheckInAnswers(
+            selectedFeeling: selectedFeeling,
             weekFocus: weekFocus,
             studyHours: studyHours,
             scheduleSummary: scheduleSummary,
             goals: goals,
-            blockers: blockers,
+            blockers: blockers
+        )
+
+        guard validation.isValid, let cleanedCheckIn = validation.checkIn else {
+            saveMessage = validation.message
+            return
+        }
+
+        let checkIn = WeeklyCheckIn(
+            id: UUID().uuidString,
+            feeling: cleanedCheckIn.feeling,
+            weekFocus: cleanedCheckIn.weekFocus,
+            studyHours: cleanedCheckIn.studyHours,
+            scheduleSummary: cleanedCheckIn.scheduleSummary,
+            goals: cleanedCheckIn.goals,
+            blockers: cleanedCheckIn.blockers,
             createdAt: Date()
         )
 

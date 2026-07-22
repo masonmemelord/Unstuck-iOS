@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 struct SettingsView: View {
     let showsReturnButton: Bool
@@ -58,7 +59,7 @@ struct SettingsView: View {
                 deleteAccount()
             }
         } message: {
-            Text("This permanently deletes your Firebase Auth account. This cannot be undone.")
+            Text("This permanently deletes your account and saved weekly plans. This cannot be undone.")
         }
     }
 
@@ -80,7 +81,7 @@ struct SettingsView: View {
                 Button {
                     dismiss()
                 } label: {
-                    Image(systemName: "gearshape.fill")
+                    Image(systemName: "house.fill")
                         .font(.headline)
                         .foregroundStyle(textColor)
                         .frame(width: 44, height: 44)
@@ -176,7 +177,8 @@ struct SettingsView: View {
     }
 
     private var statusMessageColor: Color {
-        statusMessage.lowercased().contains("updated") || statusMessage.lowercased().contains("signed out") ? accentColor : warningColor
+        let lowercasedMessage = statusMessage.lowercased()
+        return lowercasedMessage.contains("updated") || lowercasedMessage.contains("signed out") || lowercasedMessage.contains("deleting") || lowercasedMessage.contains("deleted") ? accentColor : warningColor
     }
 
     private func sectionHeader(title: String, icon: String, color: Color) -> some View {
@@ -293,10 +295,19 @@ struct SettingsView: View {
         guard validateCurrentPassword() else { return }
 
         reauthenticate { user in
-            user.delete { error in
-                completeWork(error: error, successMessage: "Account deleted.") {
-                    clearPasswords()
-                    dismiss()
+            statusMessage = "Deleting saved account data..."
+
+            deleteFirestoreData(for: user.uid) { error in
+                if let error {
+                    completeWork(error: error, successMessage: "")
+                    return
+                }
+
+                user.delete { error in
+                    completeWork(error: error, successMessage: "Account deleted.") {
+                        clearPasswords()
+                        dismiss()
+                    }
                 }
             }
         }
@@ -309,6 +320,55 @@ struct SettingsView: View {
             dismiss()
         } catch {
             statusMessage = error.localizedDescription
+        }
+    }
+
+    private func deleteFirestoreData(for userID: String, completion: @escaping (Error?) -> Void) {
+        let db = Firestore.firestore()
+        let userDocument = db.collection("users").document(userID)
+        let checkInsCollection = userDocument.collection("weeklyCheckIns")
+
+        // Firestore client batches are limited to 500 writes, so delete check-ins in smaller groups.
+        checkInsCollection.getDocuments { snapshot, error in
+            if let error {
+                completion(error)
+                return
+            }
+
+            let checkInReferences = snapshot?.documents.map { $0.reference } ?? []
+            deleteDocumentReferences(checkInReferences, using: db) { error in
+                if let error {
+                    completion(error)
+                    return
+                }
+
+                userDocument.delete(completion: completion)
+            }
+        }
+    }
+
+    private func deleteDocumentReferences(_ references: [DocumentReference], using db: Firestore, completion: @escaping (Error?) -> Void) {
+        guard !references.isEmpty else {
+            completion(nil)
+            return
+        }
+
+        let batchSize = 450
+        let currentBatch = Array(references.prefix(batchSize))
+        let remainingReferences = Array(references.dropFirst(batchSize))
+        let batch = db.batch()
+
+        currentBatch.forEach { reference in
+            batch.deleteDocument(reference)
+        }
+
+        batch.commit { error in
+            if let error {
+                completion(error)
+                return
+            }
+
+            deleteDocumentReferences(remainingReferences, using: db, completion: completion)
         }
     }
 

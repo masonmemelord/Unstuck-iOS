@@ -273,7 +273,7 @@ struct HomeView: View {
 
             actionRow(
                 title: "About Unstuck",
-                detail: "Read the mission, founder note, and team values.",
+                detail: "Find out about us anf future plans!",
                 icon: "info.circle.fill",
                 color: primaryColor
             ) {

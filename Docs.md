@@ -6,6 +6,13 @@ OpenAi's Codex as my agent and will log all major changes here before
 every commit. I'll also make
 sure to comment out everything.
 
+## Videos/Sites:
+- https://www.w3schools.com/swift/default.asp (Generic wiki info)
+- https://www.youtube.com/watch?v=Ibtlam1vFGI (What to do and how)
+- https://www.youtube.com/watch?v=2IQYbwQpFdM (What NOT to do and how to avoid it)
+- https://developers.openai.com/codex/cli (Codex download)
+- https://code.claude.com/docs/en/overview (ClaudeCode download)
+
 ## Jul 6, 2026
 First writes. 
 To Do: Integrate Firebase, Set up Cover Page, Link docs/tuts for students
@@ -20,13 +27,6 @@ Codex/Claude Code I'll link them below as well.
 
 What I got done: Cover page, Link and docs
 To Do: Integrate Firebase, add more logic and pages
-
-## Videos/Sites:
-- https://www.w3schools.com/swift/default.asp (Generic wiki info)
-- https://www.youtube.com/watch?v=Ibtlam1vFGI (What to do and how)
-- https://www.youtube.com/watch?v=2IQYbwQpFdM (What NOT to do and how to avoid it)
-- https://developers.openai.com/codex/cli (Codex download)
-- https://code.claude.com/docs/en/overview (ClaudeCode download)
 
 ## Jul 8, 2026
 Added a couple pages. Still skimming over the logic to see how everything works. No major changes outside of logic...
@@ -76,3 +76,6 @@ Changes Made: Removed "Next Build" implementtion and switched it to AboutView, a
 To Do: Work on Editing/Deletion logic, add check-in validation, and AI generated solutions based on responses (Last 
 priority)
 
+## Jul 21, 2026
+Changes Made: Added Firestore so account changes persist to the auth/db (including editing and deletion), added two factor confirmation for deletion requiring pw
+To Do: Formal Testing using real data, Clean UX, Security passes.
