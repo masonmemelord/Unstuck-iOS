@@ -6,6 +6,9 @@
 //
 
 import SwiftUI
+import FirebaseAuth
+import FirebaseFunctions
+
 
 struct OverviewView: View {
     @Environment(\.dismiss) private var dismiss
@@ -13,10 +16,15 @@ struct OverviewView: View {
     let checkIn: WeeklyCheckIn //calls from WeeklyCheckIn
     let onReturnHome: (() -> Void)?
 
+    @State private var aiPlan = ""
+    @State private var aiPlanMessage = ""
+    @State private var isGeneratingAIPlan = false
+
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
     private let cardColor = Color(red: 0.071, green: 0.102, blue: 0.141)
     private let primaryColor = Color(red: 0.231, green: 0.510, blue: 0.965)
     private let accentColor = Color(red: 0.133, green: 0.773, blue: 0.369)
+    private let warningColor = Color(red: 0.976, green: 0.451, blue: 0.086)
     private let textColor = Color(red: 0.973, green: 0.980, blue: 0.988)
     private let mutedTextColor = Color(red: 0.700, green: 0.753, blue: 0.835)
 
@@ -106,6 +114,7 @@ struct OverviewView: View {
                     metricSummary
                     logicFlowSection
                     planSection
+                    aiPlanningSection
                     goalsSection
                     recoverySection
                 }
@@ -230,6 +239,78 @@ struct OverviewView: View {
                 planCard(text: item)
             }
         }
+    }
+
+    private var aiPlanningSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.headline)
+                    .foregroundStyle(accentColor)
+                    .frame(width: 34, height: 34)
+                    .background(accentColor.opacity(0.14))
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("AI Planning")
+                        .font(.title3.bold())
+                        .foregroundStyle(textColor)
+
+                    Text("Generate a more detailed plan from this check-in.")
+                        .font(.subheadline)
+                        .foregroundStyle(mutedTextColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Button {
+                generateAIPlan()
+            } label: {
+                HStack(spacing: 10) {
+                    if isGeneratingAIPlan {
+                        ProgressView()
+                            .tint(textColor)
+                    } else {
+                        Image(systemName: "wand.and.stars")
+                    }
+
+                    Text(isGeneratingAIPlan ? "Generating..." : "Generate AI Plan")
+                        .font(.headline)
+
+                    Spacer()
+                }
+                .foregroundStyle(textColor)
+                .padding(16)
+                .background(primaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .disabled(isGeneratingAIPlan)
+            .accessibilityLabel("Generate AI weekly plan")
+
+            if !aiPlan.isEmpty {
+                Text(aiPlan)
+                    .font(.body)
+                    .foregroundStyle(textColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(backgroundColor.opacity(0.55))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+
+            if !aiPlanMessage.isEmpty {
+                Text(aiPlanMessage)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(warningColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(18)
+        .background(cardColor)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(accentColor.opacity(0.22), lineWidth: 1)
+        )
     }
 
     private var goalsSection: some View {
@@ -409,6 +490,69 @@ struct OverviewView: View {
         .padding(14)
         .background(cardColor)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func generateAIPlan() {
+        guard !isGeneratingAIPlan else { return }
+        guard Auth.auth().currentUser != nil else {
+            aiPlanMessage = "Sign in before generating an AI plan."
+            return
+        }
+
+        isGeneratingAIPlan = true
+        aiPlan = ""
+        aiPlanMessage = ""
+
+        #if canImport(FirebaseFunctions)
+        let payload: [String: Any] = [
+            "feeling": checkIn.feeling,
+            "weekFocus": checkIn.weekFocus,
+            "studyHours": checkIn.studyHours,
+            "scheduleSummary": checkIn.scheduleSummary,
+            "goals": cleanedGoals,
+            "blockers": checkIn.blockers,
+            "ruleBasedPlan": weeklyPlanItems
+        ]
+
+        Functions.functions()
+            .httpsCallable("generateWeeklyPlan")
+            .call(payload) { result, error in
+                DispatchQueue.main.async {
+                    isGeneratingAIPlan = false
+
+                    if let error {
+                        aiPlanMessage = error.localizedDescription
+                        return
+                    }
+
+                    guard let data = result?.data as? [String: Any] else {
+                        aiPlanMessage = "AI plan response was unreadable."
+                        return
+                    }
+
+                    if let plan = data["plan"] as? String {
+                        let trimmedPlan = plan.trimmingCharacters(in: .whitespacesAndNewlines)
+                        aiPlan = trimmedPlan
+                        aiPlanMessage = trimmedPlan.isEmpty ? "AI plan response was empty." : ""
+                        return
+                    }
+
+                    if let items = data["items"] as? [String] {
+                        let cleanedItems = items
+                            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                            .filter { !$0.isEmpty }
+                        aiPlan = cleanedItems.joined(separator: "\n\n")
+                        aiPlanMessage = cleanedItems.isEmpty ? "AI plan response was empty." : ""
+                        return
+                    }
+
+                    aiPlanMessage = "AI plan response was missing plan details."
+                }
+            }
+        #else
+        isGeneratingAIPlan = false
+        aiPlanMessage = "AI planning is not connected yet. Add FirebaseFunctions to the app target and deploy generateWeeklyPlan."
+        #endif
     }
 }
 

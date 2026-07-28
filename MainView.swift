@@ -6,8 +6,15 @@
 //
 
 import SwiftUI
+import FirebaseAuth
+import FirebaseFirestore
 
 struct MainView: View {
+    let onComplete: (() -> Void)?
+
+    init(onComplete: (() -> Void)? = nil) {
+        self.onComplete = onComplete
+    }
     private let backgroundColor = Color(red: 0.043, green: 0.059, blue: 0.078)
     private let cardColor = Color(red: 0.071, green: 0.102, blue: 0.141)
     private let primaryColor = Color(red: 0.231, green: 0.510, blue: 0.965)
@@ -22,8 +29,9 @@ struct MainView: View {
     @State private var college = ""
     @State private var major = ""
     @State private var creditsTaken = ""
-    @State private var isShowingTestingView = false
     @State private var schoolYear = "Freshman"
+    @State private var profileMessage = ""
+    @State private var isSavingProfile = false
     
 
     var body: some View {
@@ -80,19 +88,34 @@ struct MainView: View {
                     }
 
                     Button {
-                        isShowingTestingView = true
+                        saveProfile()
                     } label: {
-                        Text("Continue")
-                            .font(.headline)
-                            .foregroundStyle(textColor)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(primaryColor)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        HStack {
+                            if isSavingProfile {
+                                ProgressView()
+                                    .tint(textColor)
+                            }
+
+                            Text(isSavingProfile ? "Saving..." : "Continue")
+                                .font(.headline)
+                        }
+                        .foregroundStyle(textColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(primaryColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .disabled(isSavingProfile)
+
+                    if !profileMessage.isEmpty {
+                        Text(profileMessage)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(profileMessageColor)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     HStack(spacing: 10) {
-                            Text("Your answers help personalize your recovery plan.")
+                        Text("Your answers help personalize your recovery plan.")
                             .font(.footnote)
                             .foregroundStyle(mutedTextColor)
                     }
@@ -101,9 +124,6 @@ struct MainView: View {
                 .frame(maxWidth: 420)
                 .frame(maxWidth: .infinity)
             }
-        }
-        .fullScreenCover(isPresented: $isShowingTestingView) {
-            TestingView()
         }
     }
     //private function being called in the ZStack
@@ -129,8 +149,62 @@ struct MainView: View {
         }
     }
 
+    private var profileMessageColor: Color {
+        profileMessage == "Profile saved." ? accentColor : Color(red: 0.976, green: 0.451, blue: 0.086)
+    }
+
     private func saveProfile() {
-        // Hook this into Firestore when you are ready to persist onboarding answers.
+        guard !isSavingProfile else { return }
+        guard let uid = Auth.auth().currentUser?.uid else {
+            profileMessage = "Sign in before saving your profile."
+            return
+        }
+
+        let trimmedCollege = college.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedMajor = major.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedCredits = creditsTaken.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedCollege.isEmpty else {
+            profileMessage = "Enter your college before continuing."
+            return
+        }
+
+        guard !trimmedMajor.isEmpty else {
+            profileMessage = "Enter your major before continuing."
+            return
+        }
+
+        guard let creditCount = Int(trimmedCredits), (0...300).contains(creditCount) else {
+            profileMessage = "Credits taken must be a number between 0 and 300."
+            return
+        }
+
+        isSavingProfile = true
+        profileMessage = ""
+
+        let profileData: [String: Any] = [
+            "college": trimmedCollege,
+            "major": trimmedMajor,
+            "creditsTaken": creditCount,
+            "schoolYear": schoolYear,
+            "onboardingCompleted": true,
+            "updatedAt": FieldValue.serverTimestamp()
+        ]
+
+        Firestore.firestore()
+            .collection("users")
+            .document(uid)
+            .setData(profileData, merge: true) { error in
+                isSavingProfile = false
+
+                if let error {
+                    profileMessage = error.localizedDescription
+                    return
+                }
+
+                profileMessage = "Profile saved."
+                onComplete?()
+            }
     }
 }
 

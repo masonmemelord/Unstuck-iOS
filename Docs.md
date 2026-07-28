@@ -77,5 +77,12 @@ To Do: Work on Editing/Deletion logic, add check-in validation, and AI generated
 priority)
 
 ## Jul 21, 2026
-Changes Made: Added Firestore so account changes persist to the auth/db (including editing and deletion), added two factor confirmation for deletion requiring pw
+Changes Made: Added Firestore so account changes persist to the auth/db (including editing and deletion), added two 
+factor confirmation for deletion requiring pw
 To Do: Formal Testing using real data, Clean UX, Security passes.
+
+## Jul 28, 2026
+Changes Made: AI planning UI added with a Generate AI Plan. Added more Swift -> Firebase Functions with an associated
+backend. OpenAI backend/functionality added. Solidified backend functionality via Typescript. 
+Onboarding persistence added (from MainView).
+To Do: Link Firebase to OpenAI for real AI insight, General UI cleanup, Manual testing

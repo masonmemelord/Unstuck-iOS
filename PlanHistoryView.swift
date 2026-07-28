@@ -8,6 +8,7 @@
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseFunctions
 
 struct PlanHistoryView: View {
     @Environment(\.dismiss) private var dismiss

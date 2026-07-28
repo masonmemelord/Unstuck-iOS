@@ -64,7 +64,9 @@ struct ContentView: View {
             if currentUser == nil {
                 coverPage
             } else if isShowingNewUserOnboarding {
-                MainView()
+                MainView {
+                    isShowingNewUserOnboarding = false
+                }
             } else {
                 MainTabView()
             }

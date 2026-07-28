@@ -9,6 +9,8 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 
+
+
 struct HomeView: View {
     let onStartCheckIn: (() -> Void)?
     let onShowPlanHistory: (() -> Void)?
@@ -31,6 +33,7 @@ struct HomeView: View {
     private let warningColor = Color(red: 0.976, green: 0.451, blue: 0.086)
     private let textColor = Color(red: 0.973, green: 0.980, blue: 0.988)
     private let mutedTextColor = Color(red: 0.700, green: 0.753, blue: 0.835)
+    
 
     @State private var isShowingTestingView = false
     @State private var isShowingSettings = false
@@ -41,57 +44,20 @@ struct HomeView: View {
     @State private var isLoadingLatestCheckIn = false
     @State private var dashboardMessage = ""
 
+    private var metrics: DashboardMetrics {
+        DashboardMetrics.from(
+            latestCheckIn: latestCheckIn,
+            isLoading: isLoadingLatestCheckIn,
+            fallbackMessage: dashboardMessage
+        )
+    }
+
     private var userEmail: String {
         Auth.auth().currentUser?.email ?? "Student"
     }
 
-    private var parsedStudyHours: Int {
-        guard let latestCheckIn else { return 0 }
-        return Int(latestCheckIn.studyHours.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
-    }
-
-    private var planStatusValue: String {
-        latestCheckIn == nil ? "Pending" : "Ready"
-    }
-
-    private var checkInValue: String {
-        latestCheckIn?.feeling ?? "Needed"
-    }
-
-    private var recoveryValue: String {
-        guard let latestCheckIn else { return "Unset" }
-
-        switch latestCheckIn.feeling {
-        case "Burnt out":
-            return "Prioritize"
-        case "Stressed":
-            return "Protect"
-        case "Focused":
-            return "Steady"
-        case "Motivated":
-            return "Active"
-        default:
-            return "Set"
-        }
-    }
-
-    private var workloadValue: String {
-        guard latestCheckIn != nil else { return "Unknown" }
-
-        switch parsedStudyHours {
-        case 12...:
-            return "Heavy"
-        case 6...11:
-            return "Moderate"
-        case 1...5:
-            return "Light"
-        default:
-            return "Unclear"
-        }
-    }
-
     private var workloadColor: Color {
-        switch workloadValue {
+        switch metrics.workload {
         case "Heavy":
             return warningColor
         case "Moderate":
@@ -103,18 +69,7 @@ struct HomeView: View {
         }
     }
 
-    private var weeklyStatusText: String {
-        if isLoadingLatestCheckIn {
-            return "Loading your latest weekly check-in..."
-        }
-
-        if let latestCheckIn {
-            return "Latest plan: \(latestCheckIn.weekFocus). Feeling: \(latestCheckIn.feeling). Study target: \(latestCheckIn.studyHours) hours."
-        }
-
-        return dashboardMessage.isEmpty ? "Start a check-in to generate this week's plan." : dashboardMessage
-    }
-
+    
     var body: some View {
         ZStack {
             backgroundColor
@@ -206,7 +161,7 @@ struct HomeView: View {
                         .font(.headline)
                         .foregroundStyle(textColor)
 
-                    Text(weeklyStatusText)
+                    Text(metrics.weeklyStatusText)
                         .font(.subheadline)
                         .foregroundStyle(mutedTextColor)
                         .fixedSize(horizontal: false, vertical: true)
@@ -240,10 +195,10 @@ struct HomeView: View {
 
     private var metricGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            metricTile(title: "Plan Status", value: planStatusValue, icon: "list.bullet.clipboard", color: latestCheckIn == nil ? warningColor : accentColor)
-            metricTile(title: "Check-In", value: checkInValue, icon: "checkmark.circle", color: primaryColor)
-            metricTile(title: "Recovery", value: recoveryValue, icon: "heart.fill", color: accentColor)
-            metricTile(title: "Workload", value: workloadValue, icon: "books.vertical.fill", color: workloadColor)
+            metricTile(title: "Plan Status", value: metrics.planStatus, icon: "list.bullet.clipboard", color: latestCheckIn == nil ? warningColor : accentColor)
+            metricTile(title: "Check-In", value: metrics.checkIn, icon: "checkmark.circle", color: primaryColor)
+            metricTile(title: "Recovery", value: metrics.recovery, icon: "heart.fill", color: accentColor)
+            metricTile(title: "Workload", value: metrics.workload, icon: "books.vertical.fill", color: workloadColor)
         }
     }
 
