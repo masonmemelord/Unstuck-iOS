@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import SwiftData
 import FirebaseAuth
 import FirebaseFirestore
-import FirebaseFunctions
 
 struct PlanHistoryView: View {
+    @Query(sort: \LocalWeeklyCheckin.createdAt, order: .reverse)
+    private var localCheckIns: [LocalWeeklyCheckin]
+    
     @Environment(\.dismiss) private var dismiss
 
     let showsReturnButton: Bool
@@ -146,7 +149,7 @@ struct PlanHistoryView: View {
             stateCard(
                 icon: "arrow.triangle.2.circlepath",
                 title: "Loading plans",
-                detail: "Checking Firestore for your saved weekly check-ins.",
+                detail: "Checking for your saved weekly check-ins.",
                 color: primaryColor
             )
         } else if checkIns.isEmpty {
@@ -187,7 +190,7 @@ struct PlanHistoryView: View {
             return "\(checkIns.count) saved plans are available. Newest plans appear first."
         }
 
-        return message.isEmpty ? "Plan history will appear here after Firebase saves your first check-in." : message
+        return message.isEmpty ? "Plan history will appear here after your first check-in is saved." : message
     }
 
     private func historyRow(for checkIn: WeeklyCheckIn) -> some View {
@@ -274,8 +277,9 @@ struct PlanHistoryView: View {
 
     private func loadPlanHistory() {
         guard let uid = Auth.auth().currentUser?.uid else {
-            checkIns = []
-            message = "Sign in to load your saved plans."
+            // Local mode keeps history on-device and avoids any cloud requirement.
+            checkIns = localCheckIns.map(\.weeklyCheckIn)
+            message = checkIns.isEmpty ? "No saved weekly plans found on this device." : ""
             return
         }
 

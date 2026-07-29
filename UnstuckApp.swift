@@ -5,18 +5,25 @@
 //  Created by Mason Mitchell on 7/6/26.
 //
 
-import UIKit
+import SwiftUI
+import SwiftData
+import FirebaseAuth
 import FirebaseCore
 
-@UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
+@main
+struct UnstuckApp: App {
+    init() {
+        FirebaseApp.configure()
+        // Local-first auth is the source of truth; clear any older Firebase session.
+        try? Auth.auth().signOut()
+    }
 
-  var window: UIWindow?
-
-  func application(_ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions:
-                   [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-    FirebaseApp.configure()
-    return true
-  }
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }.modelContainer(for: [
+            LocalProfile.self,
+            LocalWeeklyCheckin.self
+        ])
+    }
 }

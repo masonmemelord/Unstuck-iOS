@@ -155,10 +155,6 @@ struct MainView: View {
 
     private func saveProfile() {
         guard !isSavingProfile else { return }
-        guard let uid = Auth.auth().currentUser?.uid else {
-            profileMessage = "Sign in before saving your profile."
-            return
-        }
 
         let trimmedCollege = college.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedMajor = major.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -182,29 +178,47 @@ struct MainView: View {
         isSavingProfile = true
         profileMessage = ""
 
-        let profileData: [String: Any] = [
-            "college": trimmedCollege,
-            "major": trimmedMajor,
-            "creditsTaken": creditCount,
-            "schoolYear": schoolYear,
-            "onboardingCompleted": true,
-            "updatedAt": FieldValue.serverTimestamp()
-        ]
+        if let uid = Auth.auth().currentUser?.uid {
+            // Signed-in profiles stay under users/{uid} for future cross-device sync.
+            let profileData: [String: Any] = [
+                "college": trimmedCollege,
+                "major": trimmedMajor,
+                "creditsTaken": creditCount,
+                "schoolYear": schoolYear,
+                "onboardingCompleted": true,
+                "updatedAt": FieldValue.serverTimestamp()
+            ]
 
-        Firestore.firestore()
-            .collection("users")
-            .document(uid)
-            .setData(profileData, merge: true) { error in
-                isSavingProfile = false
+            Firestore.firestore()
+                .collection("users")
+                .document(uid)
+                .setData(profileData, merge: true) { error in
+                    isSavingProfile = false
 
-                if let error {
-                    profileMessage = error.localizedDescription
-                    return
+                    if let error {
+                        profileMessage = error.localizedDescription
+                        return
+                    }
+
+                    profileMessage = "Profile saved."
+                    onComplete?()
                 }
+            return
+        }
 
-                profileMessage = "Profile saved."
-                onComplete?()
-            }
+        // Local profiles keep onboarding private and available without network access.
+        LocalProfileStore.save(
+            LocalUserProfile(
+                college: trimmedCollege,
+                major: trimmedMajor,
+                creditsTaken: creditCount,
+                schoolYear: schoolYear,
+                updatedAt: Date()
+            )
+        )
+        isSavingProfile = false
+        profileMessage = "Profile saved."
+        onComplete?()
     }
 }
 

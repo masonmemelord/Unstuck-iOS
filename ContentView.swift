@@ -6,7 +6,8 @@
 //
 
 import SwiftUI
-import FirebaseAuth
+import CryptoKit
+import Security
 
 private enum AuthMode {
     case login //case for Login and signUp
@@ -49,10 +50,14 @@ struct ContentView: View {
     private let textColor = Color(red: 0.973, green: 0.980, blue: 0.988)
     private let mutedTextColor = Color(red: 0.580, green: 0.639, blue: 0.722)
 
-    @State private var currentUser: FirebaseAuth.User?
-    @State private var authListener: AuthStateDidChangeListenerHandle?
+    // Local auth keeps the MVP private and avoids a cloud account requirement.
+    @AppStorage("unstuck.localAccountEmail") private var localAccountEmail = ""
+    @AppStorage("unstuck.localPasswordHash") private var localPasswordHash = ""
+    @AppStorage("unstuck.localPasswordSalt") private var localPasswordSalt = ""
+    @AppStorage("unstuck.localSessionEmail") private var localSessionEmail = ""
+    @AppStorage("unstuck.localOnboardingCompleted") private var localOnboardingCompleted = false
+
     @State private var isShowingLogin = false
-    @State private var isShowingNewUserOnboarding = false
     @State private var authMode: AuthMode = .login
     @State private var email = ""
     @State private var password = ""
@@ -61,18 +66,15 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if currentUser == nil {
+            if localSessionEmail.isEmpty {
                 coverPage
-            } else if isShowingNewUserOnboarding {
-                MainView {
-                    isShowingNewUserOnboarding = false
-                }
-            } else {
+            } else if localOnboardingCompleted {
                 MainTabView()
+            } else {
+                MainView {
+                    localOnboardingCompleted = true
+                }
             }
-        }
-        .onAppear {
-            startAuthListener()
         }
         .sheet(isPresented: $isShowingLogin) {
             loginSheet
@@ -109,7 +111,7 @@ struct ContentView: View {
                         .foregroundStyle(mutedTextColor)
                 }
 
-                Button { //Button Login
+                Button {
                     isShowingLogin = true
                 } label: {
                     Text("Start")
@@ -171,7 +173,6 @@ struct ContentView: View {
 
                 VStack(spacing: 12) {
                     TextField("Email", text: $email)
-                    //$email is being changed to and sent to Firebasse
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.emailAddress)
@@ -179,7 +180,7 @@ struct ContentView: View {
                         .inputStyle(cardColor: cardColor, textColor: textColor)
 
                     SecureField("Password", text: $password)
-                        .textContentType(.password) //SecureField takes password and send it to Firebase
+                        .textContentType(.password)
                         .inputStyle(cardColor: cardColor, textColor: textColor)
                 }
 
@@ -194,15 +195,11 @@ struct ContentView: View {
                 } label: {
                     authButtonLabel(authMode.buttonTitle)
                 }
-                .disabled(isAuthenticating)
             }
             .padding(24)
         }
     }
     
-    //function initializating variables title as a string and mode. Arrow functions as the logic being returned to the view
-    // Functions always need
-    // 1. initialization, 2. logic, 3. return
     private func authModeButton(_ title: String, mode: AuthMode) -> some View {
         Button {
             authMode = mode
@@ -216,16 +213,10 @@ struct ContentView: View {
                 .background(authMode == mode ? primaryColor : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .disabled(isAuthenticating)
     }
 
     private func authButtonLabel(_ title: String) -> some View {
         HStack {
-            if isAuthenticating {
-                ProgressView()
-                    .tint(textColor)
-            }
-
             Text(title)
                 .font(.headline)
         }
@@ -236,21 +227,7 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private func startAuthListener() { //checks for any auth changes
-        guard authListener == nil else { return }
-
-        currentUser = Auth.auth().currentUser
-        authListener = Auth.auth().addStateDidChangeListener { _, user in
-            currentUser = user
-
-            if user == nil {
-                isShowingNewUserOnboarding = false
-            }
-        }
-    }
-
     private func handleAuthAction() {
-        //Switch case, works similar to an if/elif branch
         switch authMode {
         case .login:
             signIn()
@@ -260,57 +237,74 @@ struct ContentView: View {
     }
 
     private func signIn() {
-        //guard is a security credential that takes the variable(s) out of scope if requirements arent met/
         guard validateCredentials() else { return }
-
-        isAuthenticating = true
-        authMessage = ""
-
-        Auth.auth().signIn(withEmail: email, password: password) { result, error in
-            isAuthenticating = false
-
-            if let error {
-                authMessage = error.localizedDescription
-                return
-            }
-
-            currentUser = result?.user //Question-mark works as a collapse 
-            password = ""
-            authMessage = "Logged in."
-            isShowingLogin = false
-            isShowingNewUserOnboarding = false
+        guard !localAccountEmail.isEmpty, !localPasswordHash.isEmpty, !localPasswordSalt.isEmpty else {
+            authMessage = "Create a local account before logging in."
+            return
         }
+
+        let trimmedEmail = normalizedEmail
+        guard trimmedEmail == localAccountEmail else {
+            authMessage = "No local account was found for this email."
+            return
+        }
+
+        guard passwordHash(for: password, salt: localPasswordSalt) == localPasswordHash else {
+            authMessage = "Incorrect password."
+            return
+        }
+
+        localSessionEmail = localAccountEmail
+        password = ""
+        authMessage = "Logged in."
+        isShowingLogin = false
     }
 
     private func createAccount() {
         guard validateCredentials() else { return }
-
-        isAuthenticating = true
-        authMessage = ""
-
-        Auth.auth().createUser(withEmail: email, password: password) { result, error in
-            isAuthenticating = false
-
-            if let error {
-                authMessage = error.localizedDescription
-                return
-            }
-
-            currentUser = result?.user
-            password = ""
-            authMessage = "Account created."
-            isShowingLogin = false
-            isShowingNewUserOnboarding = true
+        guard password.count >= 6 else {
+            authMessage = "Password must be at least 6 characters."
+            return
         }
+        guard localAccountEmail.isEmpty else {
+            authMessage = "A local account already exists on this device."
+            return
+        }
+
+        let salt = makePasswordSalt()
+        localAccountEmail = normalizedEmail
+        localPasswordSalt = salt
+        localPasswordHash = passwordHash(for: password, salt: salt)
+        localSessionEmail = localAccountEmail
+        localOnboardingCompleted = false
+        password = ""
+        authMessage = "Account created."
+        isShowingLogin = false
+    }
+
+    private var normalizedEmail: String {
+        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private func validateCredentials() -> Bool {
-        if email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty {
+        if normalizedEmail.isEmpty || password.isEmpty {
             authMessage = "Enter an email and password."
             return false
         }
 
         return true
+    }
+
+    private func makePasswordSalt() -> String {
+        var bytes = [UInt8](repeating: 0, count: 16)
+        _ = bytes.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 16, $0.baseAddress!) }
+        return Data(bytes).base64EncodedString()
+    }
+
+    private func passwordHash(for password: String, salt: String) -> String {
+        let saltedPassword = "\(salt):\(password)"
+        let digest = SHA256.hash(data: Data(saltedPassword.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
 

@@ -26,6 +26,7 @@ struct AboutView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     header
                     missionCard
+                    privacyCard
                     founderCard
                     teamCard
                     nextBuildCard
@@ -86,6 +87,23 @@ struct AboutView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .aboutCard(cardColor: cardColor, strokeColor: accentColor)
+    }
+
+    private var privacyCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(title: "Privacy & Backup", icon: "lock.shield.fill", color: primaryColor)
+
+            Text("Unstuck is local-first: account details, onboarding status, and saved weekly check-ins are stored on this device whenever possible.")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(textColor)
+                .fixedSize(horizontal: false, vertical: true)
+
+            valueRow(title: "Local state first", detail: "Weekly check-ins are saved locally before they appear in history or the dashboard.")
+            valueRow(title: "Firebase backup status", detail: "Firebase remains connected for signed-in cloud recovery features and server fallback, but failed local saves are not silently uploaded.")
+            valueRow(title: "AI fallback", detail: "FoundationModels runs on device when available. Firebase Functions is used only as a backup path for AI planning when the local model is unavailable and the user is signed in.")
+            valueRow(title: "User-owned cleanup", detail: "Deleting a local account removes local account data and saved plans from this device. Firebase account cleanup stays tied to the signed-in account flow.")
+        }
+        .aboutCard(cardColor: cardColor, strokeColor: primaryColor)
     }
 
     private var founderCard: some View {

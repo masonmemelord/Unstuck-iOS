@@ -6,11 +6,11 @@
 //
 
 import SwiftUI
-import FirebaseAuth
-import FirebaseFirestore
+import SwiftData
 
 
 struct TestingView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     let showsReturnButton: Bool
@@ -234,7 +234,7 @@ struct TestingView: View {
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundStyle(textColor)
 
-                    Text("You are feeling \(selectedFeeling.lowercased()). Lets get to it!")
+                    Text("You are feeling \(selectedFeeling.lowercased()). Let's get to it!")
                         .font(.subheadline)
                         .foregroundStyle(mutedTextColor)
                 }
@@ -440,11 +440,6 @@ struct TestingView: View {
     }
 
     private func saveWeeklyCheckIn() {
-        guard let uid = Auth.auth().currentUser?.uid else {
-            saveMessage = "Please sign in before saving your weekly plan."
-            return
-        }
-
         let validation = WeeklyCheckInValidator.validate(
             selectedFeeling: selectedFeeling,
             weekFocus: weekFocus,
@@ -470,32 +465,27 @@ struct TestingView: View {
             createdAt: Date()
         )
 
-        let data: [String: Any] = [
-            "id": checkIn.id,
-            "feeling": checkIn.feeling,
-            "weekFocus": checkIn.weekFocus,
-            "studyHours": checkIn.studyHours,
-            "scheduleSummary": checkIn.scheduleSummary,
-            "goals": checkIn.goals,
-            "blockers": checkIn.blockers,
-            "createdAt": Timestamp(date: checkIn.createdAt)
-        ]
+        let localCheckIn = LocalWeeklyCheckin(
+            id: checkIn.id,
+            feeling: checkIn.feeling,
+            weekFocus: checkIn.weekFocus,
+            studyHours: checkIn.studyHours,
+            scheduleSummary: checkIn.scheduleSummary,
+            goals: checkIn.goals,
+            blockers: checkIn.blockers,
+            createdAt: checkIn.createdAt
+        )
 
-        Firestore.firestore()
-            .collection("users")
-            .document(uid)
-            .collection("weeklyCheckIns")
-            .document(checkIn.id)
-            .setData(data) { error in
-                if let error {
-                    saveMessage = error.localizedDescription
-                    return
-                }
+        modelContext.insert(localCheckIn)
 
-                savedCheckIn = checkIn
-                saveMessage = "Weekly plan saved."
-                isShowingOverview = true
-            }
+        do {
+            try modelContext.save()
+            savedCheckIn = checkIn
+            saveMessage = "Weekly plan saved."
+            isShowingOverview = true
+        } catch {
+            saveMessage = "Could not save weekly plan locally."
+        }
     }
     }
 

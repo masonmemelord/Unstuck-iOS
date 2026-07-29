@@ -6,8 +6,11 @@
 //
 
 import SwiftUI
+import CryptoKit
 import FirebaseAuth
 import FirebaseFirestore
+import Security
+import SwiftData
 
 struct SettingsView: View {
     let showsReturnButton: Bool
@@ -25,6 +28,13 @@ struct SettingsView: View {
     private let mutedTextColor = Color(red: 0.580, green: 0.639, blue: 0.722)
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    @AppStorage("unstuck.localAccountEmail") private var localAccountEmail = ""
+    @AppStorage("unstuck.localPasswordHash") private var localPasswordHash = ""
+    @AppStorage("unstuck.localPasswordSalt") private var localPasswordSalt = ""
+    @AppStorage("unstuck.localSessionEmail") private var localSessionEmail = ""
+    @AppStorage("unstuck.localOnboardingCompleted") private var localOnboardingCompleted = false
 
     @State private var currentEmail = Auth.auth().currentUser?.email ?? "No email available"
     @State private var newEmail = ""
@@ -34,6 +44,14 @@ struct SettingsView: View {
     @State private var statusMessage = ""
     @State private var isWorking = false
     @State private var isShowingDeleteConfirmation = false
+
+    private var displayedEmail: String {
+        Auth.auth().currentUser?.email ?? (localAccountEmail.isEmpty ? "No local account" : localAccountEmail)
+    }
+
+    private var isLocalAccount: Bool {
+        Auth.auth().currentUser == nil
+    }
 
     var body: some View {
         ZStack {
@@ -106,7 +124,7 @@ struct SettingsView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(mutedTextColor)
 
-                Text(currentEmail)
+                Text(displayedEmail)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(textColor)
                     .lineLimit(1)
@@ -168,7 +186,7 @@ struct SettingsView: View {
             }
             .disabled(isWorking)
 
-            Text("Deleting your account requires your current password so Firebase can re-authenticate the request.")
+            Text(isLocalAccount ? "Deleting your local account removes the account, onboarding profile, and saved plans from this device." : "Deleting your account requires your current password so Firebase can re-authenticate the request.")
                 .font(.caption)
                 .foregroundStyle(mutedTextColor)
                 .fixedSize(horizontal: false, vertical: true)
@@ -261,6 +279,15 @@ struct SettingsView: View {
         }
         guard validateCurrentPassword() else { return }
 
+        if isLocalAccount {
+            localAccountEmail = trimmedEmail.lowercased()
+            localSessionEmail = localAccountEmail
+            newEmail = ""
+            clearPasswords()
+            statusMessage = "Email updated."
+            return
+        }
+
         reauthenticate { user in
             user.sendEmailVerification(beforeUpdatingEmail: trimmedEmail) { error in
                 completeWork(error: error, successMessage: "Verification sent. Confirm the new email to finish updating your login.") {
@@ -282,6 +309,15 @@ struct SettingsView: View {
             return
         }
 
+        if isLocalAccount {
+            let salt = makePasswordSalt()
+            localPasswordSalt = salt
+            localPasswordHash = passwordHash(for: newPassword, salt: salt)
+            clearPasswords()
+            statusMessage = "Password updated."
+            return
+        }
+
         reauthenticate { user in
             user.updatePassword(to: newPassword) { error in
                 completeWork(error: error, successMessage: "Password updated.") {
@@ -293,6 +329,13 @@ struct SettingsView: View {
 
     private func deleteAccount() {
         guard validateCurrentPassword() else { return }
+
+        if isLocalAccount {
+            clearLocalAccount()
+            statusMessage = "Account deleted."
+            dismiss()
+            return
+        }
 
         reauthenticate { user in
             statusMessage = "Deleting saved account data..."
@@ -314,6 +357,13 @@ struct SettingsView: View {
     }
 
     private func signOut() {
+        if isLocalAccount {
+            localSessionEmail = ""
+            statusMessage = "Signed out."
+            dismiss()
+            return
+        }
+
         do {
             try Auth.auth().signOut()
             statusMessage = "Signed out."
@@ -378,6 +428,12 @@ struct SettingsView: View {
             return false
         }
 
+        if isLocalAccount,
+           passwordHash(for: currentPassword, salt: localPasswordSalt) != localPasswordHash {
+            statusMessage = "Current password is incorrect."
+            return false
+        }
+
         return true
     }
 
@@ -419,6 +475,44 @@ struct SettingsView: View {
         currentPassword = ""
         newPassword = ""
         confirmNewPassword = ""
+    }
+
+    private func clearLocalAccount() {
+        localAccountEmail = ""
+        localPasswordHash = ""
+        localPasswordSalt = ""
+        localSessionEmail = ""
+        localOnboardingCompleted = false
+        LocalProfileStore.clear()
+        LocalWeeklyCheckInStore.clear()
+        clearLocalSwiftData()
+        clearPasswords()
+    }
+
+    private func clearLocalSwiftData() {
+        let checkInDescriptor = FetchDescriptor<LocalWeeklyCheckin>()
+        if let checkIns = try? modelContext.fetch(checkInDescriptor) {
+            checkIns.forEach { modelContext.delete($0) }
+        }
+
+        let profileDescriptor = FetchDescriptor<LocalProfile>()
+        if let profiles = try? modelContext.fetch(profileDescriptor) {
+            profiles.forEach { modelContext.delete($0) }
+        }
+
+        try? modelContext.save()
+    }
+
+    private func makePasswordSalt() -> String {
+        var bytes = [UInt8](repeating: 0, count: 16)
+        _ = bytes.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 16, $0.baseAddress!) }
+        return Data(bytes).base64EncodedString()
+    }
+
+    private func passwordHash(for password: String, salt: String) -> String {
+        let saltedPassword = "\(salt):\(password)"
+        let digest = SHA256.hash(data: Data(saltedPassword.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
 

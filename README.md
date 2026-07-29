@@ -86,3 +86,8 @@ Changes Made: AI planning UI added with a Generate AI Plan. Added more Swift -> 
 backend. OpenAI backend/functionality added. Solidified backend functionality via Typescript. 
 Onboarding persistence added (from MainView).
 To Do: Link Firebase to OpenAI for real AI insight, General UI cleanup, Manual testing
+
+## Jul 29, 2026
+Major revamp coming. I plan on changing towards Apple's native LLM (FoundationModels) to increase streamlining and lower costs for all users.
+Changes Made: Implementation of FoundationModels for local-hosting and privacy; Added privacy language into AboutView.swift; Basic persistence for some data requests.
+To-Do: Localize data-routing and persistence

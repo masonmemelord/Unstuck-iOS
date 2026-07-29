@@ -8,6 +8,9 @@
 import SwiftUI
 import FirebaseAuth
 import FirebaseFunctions
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 
 struct OverviewView: View {
@@ -494,14 +497,77 @@ struct OverviewView: View {
 
     private func generateAIPlan() {
         guard !isGeneratingAIPlan else { return }
-        guard Auth.auth().currentUser != nil else {
-            aiPlanMessage = "Sign in before generating an AI plan."
-            return
-        }
 
         isGeneratingAIPlan = true
         aiPlan = ""
         aiPlanMessage = ""
+
+        #if canImport(FoundationModels)
+        Task {
+            if await generateFoundationModelPlan() {
+                return
+            }
+
+            generateFirebaseAIPlan()
+        }
+        #else
+        generateFirebaseAIPlan()
+        #endif
+    }
+
+    private var foundationModelPrompt: String {
+        """
+        Build a practical weekly study and recovery plan from this student check-in.
+
+        Feeling: \(checkIn.feeling)
+        Main focus: \(checkIn.weekFocus)
+        Study hours: \(checkIn.studyHours)
+        Schedule: \(checkIn.scheduleSummary)
+        Goals: \(cleanedGoals.joined(separator: ", "))
+        Blockers: \(checkIn.blockers)
+        Existing rule-based plan: \(weeklyPlanItems.joined(separator: " "))
+
+        Return 4 to 6 concise action items. Make each item specific, realistic, and supportive.
+        Include recovery time when stress or burnout is present.
+        Do not provide medical, legal, or crisis counseling.
+        """
+    }
+
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, macOS 26.0, tvOS 26.0, visionOS 26.0, *)
+    private func generateFoundationModelPlan() async -> Bool {
+        let model = SystemLanguageModel.default
+        guard model.isAvailable else {
+            return false
+        }
+
+        do {
+            let instructions = """
+            You create useful weekly plans for college students. Keep the plan practical, concise, and focused on study structure, workload management, and sustainable recovery.
+            """
+            let session = LanguageModelSession(instructions: instructions)
+            let response = try await session.respond(to: foundationModelPrompt)
+            let trimmedPlan = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            await MainActor.run {
+                isGeneratingAIPlan = false
+                aiPlan = trimmedPlan
+                aiPlanMessage = trimmedPlan.isEmpty ? "AI plan response was empty." : ""
+            }
+
+            return true
+        } catch {
+            return false
+        }
+    }
+    #endif
+
+    private func generateFirebaseAIPlan() {
+        guard Auth.auth().currentUser != nil else {
+            isGeneratingAIPlan = false
+            aiPlanMessage = "Sign in before generating an AI plan."
+            return
+        }
 
         #if canImport(FirebaseFunctions)
         let payload: [String: Any] = [
@@ -551,7 +617,7 @@ struct OverviewView: View {
             }
         #else
         isGeneratingAIPlan = false
-        aiPlanMessage = "AI planning is not connected yet. Add FirebaseFunctions to the app target and deploy generateWeeklyPlan."
+        aiPlanMessage = "AI planning is not connected yet. Add FirebaseFunctions or FoundationModels to the app target."
         #endif
     }
 }

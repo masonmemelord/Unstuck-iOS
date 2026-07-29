@@ -6,12 +6,16 @@
 //
 
 import SwiftUI
+import SwiftData
 import FirebaseAuth
 import FirebaseFirestore
 
 
 
 struct HomeView: View {
+    @Query(sort: \LocalWeeklyCheckin.createdAt, order: .reverse)
+    private var localCheckins: [LocalWeeklyCheckin]
+    
     let onStartCheckIn: (() -> Void)?
     let onShowPlanHistory: (() -> Void)?
     let showsSettingsButton: Bool
@@ -53,7 +57,16 @@ struct HomeView: View {
     }
 
     private var userEmail: String {
-        Auth.auth().currentUser?.email ?? "Student"
+        if let email = Auth.auth().currentUser?.email {
+            return email
+        }
+
+        // Local mode uses onboarding details instead of a Firebase email.
+        if let profile = LocalProfileStore.load() {
+            return "\(profile.schoolYear) · \(profile.major)"
+        }
+
+        return "Local Student"
     }
 
     private var workloadColor: Color {
@@ -228,7 +241,7 @@ struct HomeView: View {
 
             actionRow(
                 title: "About Unstuck",
-                detail: "Find out about us anf future plans!",
+                detail: "Find out about us and future plans.",
                 icon: "info.circle.fill",
                 color: primaryColor
             ) {
@@ -335,8 +348,9 @@ struct HomeView: View {
 
     private func loadLatestCheckIn() {
         guard let uid = Auth.auth().currentUser?.uid else {
-            latestCheckIn = nil
-            dashboardMessage = "Sign in to load your latest weekly plan."
+            // Local users read from device storage; signed-in users read from Firestore below.
+            latestCheckIn = localCheckins.first?.weeklyCheckIn
+            dashboardMessage = latestCheckIn == nil ? "No saved weekly plan yet." : ""
             return
         }
 
