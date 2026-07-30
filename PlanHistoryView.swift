@@ -30,6 +30,7 @@ struct PlanHistoryView: View {
     private let textColor = Color(red: 0.973, green: 0.980, blue: 0.988)
     private let mutedTextColor = Color(red: 0.700, green: 0.753, blue: 0.835)
 
+    @AppStorage(LocalWeeklyCheckInStore.revisionKey) private var localCheckInsRevision = 0
     @State private var checkIns: [WeeklyCheckIn] = []
     @State private var selectedCheckIn: WeeklyCheckIn?
     @State private var isLoading = false
@@ -41,6 +42,14 @@ struct PlanHistoryView: View {
         formatter.timeStyle = .short
         return formatter
     }()
+
+    private var localCheckInSignature: String {
+        "\(localCheckInsRevision):" + localCheckIns.map(\.id).joined(separator: ",")
+    }
+
+    private var displayedCheckIns: [WeeklyCheckIn] {
+        mergedCheckIns(checkIns + mergedLocalCheckIns())
+    }
 
     var body: some View {
         ZStack {
@@ -63,6 +72,9 @@ struct PlanHistoryView: View {
             }
         }
         .onAppear {
+            loadPlanHistory()
+        }
+        .onChange(of: localCheckInSignature) {
             loadPlanHistory()
         }
         .refreshable {
@@ -152,7 +164,7 @@ struct PlanHistoryView: View {
                 detail: "Checking for your saved weekly check-ins.",
                 color: primaryColor
             )
-        } else if checkIns.isEmpty {
+        } else if displayedCheckIns.isEmpty {
             stateCard(
                 icon: "calendar.badge.plus",
                 title: "No saved plans yet",
@@ -165,7 +177,7 @@ struct PlanHistoryView: View {
                     .font(.headline)
                     .foregroundStyle(textColor)
 
-                ForEach(checkIns) { checkIn in
+                ForEach(displayedCheckIns) { checkIn in
                     Button {
                         selectedCheckIn = checkIn
                     } label: {
@@ -182,12 +194,14 @@ struct PlanHistoryView: View {
             return "Loading your saved plans."
         }
 
-        if checkIns.count == 1 {
+        let count = displayedCheckIns.count
+
+        if count == 1 {
             return "1 saved plan is available. Tap it to share the results in the plan overview."
         }
 
-        if checkIns.count > 1 {
-            return "\(checkIns.count) saved plans are available. Newest plans appear first."
+        if count > 1 {
+            return "\(count) saved plans are available. Newest plans appear first."
         }
 
         return message.isEmpty ? "Plan history will appear here after your first check-in is saved." : message
@@ -276,12 +290,11 @@ struct PlanHistoryView: View {
     }
 
     private func loadPlanHistory() {
-        guard let uid = Auth.auth().currentUser?.uid else {
-            // Local mode keeps history on-device and avoids any cloud requirement.
-            checkIns = localCheckIns.map(\.weeklyCheckIn)
-            message = checkIns.isEmpty ? "No saved weekly plans found on this device." : ""
-            return
-        }
+        let localCheckIns = mergedLocalCheckIns()
+        checkIns = localCheckIns
+        message = localCheckIns.isEmpty ? "No saved weekly plans found on this device." : ""
+
+        guard let uid = Auth.auth().currentUser?.uid else { return }
 
         isLoading = true
         message = ""
@@ -297,16 +310,27 @@ struct PlanHistoryView: View {
                     isLoading = false
 
                     if let error {
-                        checkIns = []
-                        message = error.localizedDescription
+                        checkIns = localCheckIns
+                        message = localCheckIns.isEmpty ? error.localizedDescription : ""
                         return
                     }
 
                     let decodedCheckIns = snapshot?.documents.compactMap { makeCheckIn(from: $0) } ?? []
-                    checkIns = decodedCheckIns
-                    message = decodedCheckIns.isEmpty ? "No saved weekly plans found." : ""
+                    checkIns = mergedCheckIns(localCheckIns + decodedCheckIns)
+                    message = checkIns.isEmpty ? "No saved weekly plans found." : ""
                 }
             }
+    }
+
+    private func mergedLocalCheckIns() -> [WeeklyCheckIn] {
+        let swiftDataCheckIns = localCheckIns.map(\.weeklyCheckIn)
+        let storedCheckIns = LocalWeeklyCheckInStore.loadAll()
+        return mergedCheckIns(swiftDataCheckIns + storedCheckIns)
+    }
+
+    private func mergedCheckIns(_ checkIns: [WeeklyCheckIn]) -> [WeeklyCheckIn] {
+        let keyedCheckIns = Dictionary(checkIns.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return keyedCheckIns.values.sorted { $0.createdAt > $1.createdAt }
     }
 
     private func makeCheckIn(from document: QueryDocumentSnapshot) -> WeeklyCheckIn? {

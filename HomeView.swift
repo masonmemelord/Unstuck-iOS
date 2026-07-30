@@ -43,6 +43,7 @@ struct HomeView: View {
     @State private var isShowingSettings = false
     @State private var isShowingAbout = false
     @State private var isShowingLatestPlan = false
+    @AppStorage(LocalWeeklyCheckInStore.revisionKey) private var localCheckInsRevision = 0
     @State private var isShowingPlanHistory = false
     @State private var latestCheckIn: WeeklyCheckIn?
     @State private var isLoadingLatestCheckIn = false
@@ -54,6 +55,10 @@ struct HomeView: View {
             isLoading: isLoadingLatestCheckIn,
             fallbackMessage: dashboardMessage
         )
+    }
+
+    private var localCheckInSignature: String {
+        "\(localCheckInsRevision):" + localCheckins.map(\.id).joined(separator: ",")
     }
 
     private var userEmail: String {
@@ -103,6 +108,9 @@ struct HomeView: View {
             }
         }
         .onAppear {
+            loadLatestCheckIn()
+        }
+        .onChange(of: localCheckInSignature) {
             loadLatestCheckIn()
         }
         .fullScreenCover(isPresented: $isShowingTestingView, onDismiss: loadLatestCheckIn) {
@@ -348,8 +356,8 @@ struct HomeView: View {
 
     private func loadLatestCheckIn() {
         guard let uid = Auth.auth().currentUser?.uid else {
-            // Local users read from device storage; signed-in users read from Firestore below.
-            latestCheckIn = localCheckins.first?.weeklyCheckIn
+            // Local users read from SwiftData first, then fall back to the older device store.
+            latestCheckIn = localCheckins.first?.weeklyCheckIn ?? LocalWeeklyCheckInStore.latest()
             dashboardMessage = latestCheckIn == nil ? "No saved weekly plan yet." : ""
             return
         }

@@ -89,5 +89,10 @@ To Do: Link Firebase to OpenAI for real AI insight, General UI cleanup, Manual t
 
 ## Jul 29, 2026
 Major revamp coming. I plan on changing towards Apple's native LLM (FoundationModels) to increase streamlining and lower costs for all users.
-Changes Made: Implementation of FoundationModels for local-hosting and privacy; Added privacy language into AboutView.swift; Basic persistence for some data requests.
+Changes Made: Implementation of FoundationModels for local-hosting and privacy; Added privacy language into AboutView.swift; Basic 
+persistence for some data requests.
 To-Do: Localize data-routing and persistence
+
+## Jul 30, 2026
+Changes Made: fixed compiling issues with TestingView.swift (malformed closing braces); Improved Local persistence to PlanHistory; Ran builds for testing
+To Do: Test data reliability, user flows, and AI quality

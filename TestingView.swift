@@ -7,6 +7,8 @@
 
 import SwiftUI
 import SwiftData
+import FirebaseAuth
+import FirebaseFirestore
 
 
 struct TestingView: View {
@@ -476,6 +478,7 @@ struct TestingView: View {
             createdAt: checkIn.createdAt
         )
 
+        LocalWeeklyCheckInStore.save(checkIn)
         modelContext.insert(localCheckIn)
 
         do {
@@ -483,11 +486,37 @@ struct TestingView: View {
             savedCheckIn = checkIn
             saveMessage = "Weekly plan saved."
             isShowingOverview = true
+            backupCheckInToFirestore(checkIn)
         } catch {
-            saveMessage = "Could not save weekly plan locally."
+            savedCheckIn = checkIn
+            saveMessage = "Weekly plan saved to device backup."
+            isShowingOverview = true
         }
     }
+
+    private func backupCheckInToFirestore(_ checkIn: WeeklyCheckIn) {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+
+        let checkInData: [String: Any] = [
+            "id": checkIn.id,
+            "feeling": checkIn.feeling,
+            "weekFocus": checkIn.weekFocus,
+            "studyHours": checkIn.studyHours,
+            "scheduleSummary": checkIn.scheduleSummary,
+            "goals": checkIn.goals,
+            "blockers": checkIn.blockers,
+            "createdAt": Timestamp(date: checkIn.createdAt)
+        ]
+
+        // Security: user-owned check-ins stay scoped to users/{uid}; Firestore rules should enforce matching auth uid.
+        Firestore.firestore()
+            .collection("users")
+            .document(uid)
+            .collection("weeklyCheckIns")
+            .document(checkIn.id)
+            .setData(checkInData, merge: true)
     }
+}
 
 #Preview {
     TestingView()
